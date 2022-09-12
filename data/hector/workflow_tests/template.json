@@ -1,0 +1,39 @@
+{
+    "id": "Workflow ID (ruta)",
+    "name": "Workflow Name",
+    "apiVersion": "hector/v1",
+    "spec": {
+      "dag": {
+        "tasks": [
+          {
+            "name": "",
+            "dependencies": [
+              ""
+            ],
+            "component": ""
+          },
+          {
+            "name": "",
+            "dependencies": [
+              ""
+            ],
+            "component": ""
+          },
+          {
+            "name": "",
+            "dependencies": [
+              ""
+            ],
+            "component": ""
+          },
+          {
+            "name": "",
+            "dependencies": [
+              ""
+            ],
+            "component": ""
+          }
+        ]
+      }
+    }
+}
