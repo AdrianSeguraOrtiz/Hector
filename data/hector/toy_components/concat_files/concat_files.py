@@ -27,7 +27,7 @@ def concat_files(
 if __name__ == "__main__":
     typer.run(concat_files)
 
-# cd data/kubernetes/toy_components/concat_files
+# cd data/hector/toy_components/concat_files
 # docker build -t adriansegura99/dag_kubernetes_concat-files .
 # docker push adriansegura99/dag_kubernetes_concat-files
 # cd ../../../../

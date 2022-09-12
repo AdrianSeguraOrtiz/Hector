@@ -22,7 +22,7 @@ def count_letters(
 if __name__ == "__main__":
     typer.run(count_letters)
 
-# cd data/kubernetes/toy_components/count_letters
+# cd data/hector/toy_components/count_letters
 # docker build -t adriansegura99/dag_kubernetes_count-letters .
 # docker push adriansegura99/dag_kubernetes_count-letters
 # cd ../../../../

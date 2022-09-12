@@ -19,7 +19,7 @@ def concat_messages(
 if __name__ == "__main__":
     typer.run(concat_messages)
 
-# cd data/kubernetes/toy_components/concat_messages
+# cd data/hector/toy_components/concat_messages
 # docker build -t adriansegura99/dag_kubernetes_concat-messages .
 # docker push adriansegura99/dag_kubernetes_concat-messages
 # cd ../../../../

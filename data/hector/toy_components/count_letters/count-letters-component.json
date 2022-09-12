@@ -15,7 +15,7 @@
         }
     ],
     "container": {
-        "dockerfile": "repo/data/kubernetes/toy_components/count_letters/Dockerfile",
+        "dockerfile": "repo/data/hector/toy_components/count_letters/Dockerfile",
         "image": "adriansegura99/dag_kubernetes_count-letters"
     }
 }

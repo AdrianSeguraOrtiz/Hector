@@ -19,7 +19,7 @@
         }
     ],
     "container": {
-        "dockerfile": "repo/data/kubernetes/toy_components/concat_messages/Dockerfile",
+        "dockerfile": "repo/data/hector/toy_components/concat_messages/Dockerfile",
         "image": "adriansegura99/dag_kubernetes_concat-messages"
     }
 }
