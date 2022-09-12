@@ -8,8 +8,11 @@ import (
 	"dag/hector/golang/module/pkg/components"
 	"dag/hector/golang/module/pkg/workflows"
     "dag/hector/golang/module/pkg/executions"
+    "dag/hector/golang/module/executors"
+    "dag/hector/golang/module/executors/mock"
     "github.com/go-playground/validator/v10"
     "golang.org/x/exp/slices"
+    "github.com/rs/xid"
 )
 
 func main() {
@@ -82,8 +85,13 @@ func main() {
     execWorkflow := workflowStructs[idx]
     execTasksSorted := topologicalSortOfWorkflows[execution.Workflow]
 
-    // 3. Recorremos las agrupaciones de tareas según el orden topológico del workflow
+    // 3. Validamos el archivo de ejecución garantizando la especificación de todas las tareas y la correcta inserción de parámetros. Además construimos un vector definitivo de tareas para el ejecutador
+    // Vector bidimensional para almacenar las tareas ordenadas con el contenido necesario para su ejecución
+    var runTasks [][]executors.RunTask
+    // Para cada grupo de tareas ...
     for _, taskGroup := range execTasksSorted {
+        // Vector unidimensional para almacenar las tareas del grupo
+        var runTasksGroup []executors.RunTask
         // Para cada tarea dentro del grupo ...
         for _, taskName := range taskGroup {
             // A. Extraemos la información de la tarea del archivo de ejecución (si no se encuentra se lanza un error)
@@ -102,6 +110,7 @@ func main() {
             idxExecComponent := slices.IndexFunc(componentStructs, func(c components.Component) bool { return c.Id == componentId })
             execComponent := componentStructs[idxExecComponent]
 
+            // Inputs
             for _, componentInput := range execComponent.Inputs {
                 idxExecutionInput := slices.IndexFunc(executionTask.Inputs, func(p executions.Parameter) bool { return p.Name == componentInput.Name })
                 if idxExecutionInput == -1 {
@@ -113,6 +122,7 @@ func main() {
                 }
             }
 
+            // Outputs
             for _, componentOutput := range execComponent.Outputs {
                 idxExecutionOutput := slices.IndexFunc(executionTask.Outputs, func(p executions.Parameter) bool { return p.Name == componentOutput.Name })
                 if idxExecutionOutput == -1 {
@@ -123,8 +133,33 @@ func main() {
                     panic("Output " + componentOutput.Name + " has an invalid value in the execution file.")
                 }
             }
+
+            // D. Creamos la tarea de ejecución y la añadimos a la lista de tareas del grupo
+            task := executors.RunTask {
+                Id: xid.New().String(),
+                Name: taskName,
+                Image: execComponent.Container.Image,
+                Arguments: append(executionTask.Inputs, executionTask.Outputs ...),
+            }
+            runTasksGroup = append(runTasksGroup, task)
         }
-        
-        // Simular la ejecución del grupo de tareas
+        // Añadimos las tareas del grupo a la lista bidimensional
+        runTasks = append(runTasks, runTasksGroup)
+    }
+
+    // 4. Comenzamos la ejecución de tareas
+    // Instanciamos el ejecutador
+    executor := mock.Mock{}
+
+    // Para cada grupo de tareas ...
+    for _, runTaskGroup := range runTasks {
+        // Se ponen en ejecución todas las tareas del grupo
+        for _, runTask := range runTaskGroup {
+            executor.ExecuteTask(&runTask)
+        }
+        // Se espera a que terminen todas las tareas del grupo antes de comenzar a ejecutar el siguiente
+        for _, runTask := range runTaskGroup {
+            executor.Wait(runTask.Id)
+        }
     }
 }
