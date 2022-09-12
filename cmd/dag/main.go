@@ -4,7 +4,6 @@ import (
 	"fmt"
     "encoding/json"
 	"github.com/go-playground/validator/v10"
-	"strings"
 
 	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/components"
@@ -89,7 +88,7 @@ func main() {
 
 
 	// 3. Topological sorting
-	orderedTasks := workflows.TopologicalSort(&workflow)
+	orderedTasks := workflows.TopologicalGroupedSort(&workflow)
 	fmt.Println()
-	fmt.Println("Topological order: " + strings.Join(orderedTasks[:], ","))
+	fmt.Println("Topological grouped order:", orderedTasks)
 }

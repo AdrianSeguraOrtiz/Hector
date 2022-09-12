@@ -1,62 +1,88 @@
 package workflows
 
 import (
-	"golang.org/x/exp/slices"
+	"dag/hector/golang/module/pkg"
 )
 
-func topologicalSortUtil(name string, tasks *[]WorkflowTask, visited map[string]bool, stack *[]string) {
+func getChildren(taskName string, tasks *[]WorkflowTask) []string {
 	/*
-	This secondary function is responsible for exploring 
-	dependency paths by means of recurrence.
+		This function is in charge of extracting the dependent tasks 
+		of the one specified in the entry.
 
-	Receives the name of the starting task, the array pointer 
-	with all tasks, the visit map (maps do not require pointers) 
-	and the stack pointer.
+		It takes as input the name of the task whose children you want 
+		to know, and the pointer to the total set of tasks in the workflow. 
+		Finally it returns as result an array with the names of the 
+		children of the input task.
 	*/
 
-	// The current task is marked as visited
-	visited[name] = true
+	// Declare the result list
+	var children []string
 
-	// The data of the current task are obtained thanks to the name provided in the entry
-	taskIndex := slices.IndexFunc(*tasks, func(t WorkflowTask) bool { return t.Name == name })
-	task := (*tasks)[taskIndex]
-
-	// Recurrence is applied for each dependency not reviewed.
-	for _, dependencie := range task.Dependencies{
-		if ! visited[dependencie] {
-			topologicalSortUtil(dependencie, tasks, visited, stack)
+	// Children are those tasks that contain the input task in their list of dependencies.
+	for _, task := range *tasks {
+		if pkg.Contains(task.Dependencies, taskName) {
+			children = append(children, task.Name)
 		}
 	}
 
-	// The current task is added to the task stack.
-	*stack = append(*stack, name)
+	// Return the result list
+	return children
 }
 
-func TopologicalSort(workflow *Workflow) []string {
+func TopologicalGroupedSort(workflow *Workflow) [][]string {
 	/*
-	This function is responsible for extracting a feasible 
-	topological order from the tasks in a workflow.
+		This function establishes a grouped topological order 
+		for an optimal and correct execution of tasks defined 
+		on a workflow.
 
-	Takes as input the pointer of a struct of type Workflow 
-	and returns an ordered array of strings with the names of the tasks.
+		Takes the workflow pointer as input and returns a 
+		two-dimensional vector with the names of the sorted tasks.
 	*/
 
 	// The task array is extracted from the value of the input pointer.
 	tasks := (*workflow).Spec.Dag.Tasks
 
-	// A map is created to indicate which tasks have already been reviewed (visited).
-	visited := make(map[string]bool)
+	// Declare a map containing for each task, the number of dependencies defined for it in the workflow
+	indegreeMap := make(map[string]int)
+	// Declare an array with the names of tasks that do not have any dependency
+	var zeroIndegree []string
 
-	// A stack is created to store the result
-	var stack []string
-
-	// For each unchecked task, the complementary function is called
-    for _, task := range tasks {
-        if ! visited[task.Name] {
-			topologicalSortUtil(task.Name, &tasks, visited, &stack)
+	// Fill both elements
+	for _, task := range tasks {
+		if task.Dependencies != nil {
+			indegreeMap[task.Name] = len(task.Dependencies)
+		} else {
+			zeroIndegree = append(zeroIndegree, task.Name)
 		}
-    }
+	}
 
-	// The completed stack is returned
-	return stack
+	// Create the output vector
+	var result [][]string
+	// Add initial tasks (those without dependencies)
+	result = append(result, zeroIndegree)
+	// Create a Boolean variable that is activated when the search process is finished.
+	var finished bool
+
+	// Code based on response https://stackoverflow.com/a/56815903
+	for !finished {
+		var newZeroIndegree []string
+		for _, initialTaskName := range zeroIndegree {
+			childrenNames := getChildren(initialTaskName, &tasks)
+			for _, childName := range childrenNames {
+				indegreeMap[childName] -= 1
+				if indegreeMap[childName] == 0 {
+					newZeroIndegree = append(newZeroIndegree, childName)
+				}
+			}
+		}
+		if len(newZeroIndegree) > 0 {
+			result = append(result, newZeroIndegree)
+			zeroIndegree = newZeroIndegree
+		} else {
+			finished = true
+		}
+	}
+
+	// Return the output vector
+	return result
 }
