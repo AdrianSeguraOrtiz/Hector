@@ -1,0 +1,34 @@
+{
+    "id": "ToyWorkflow1ID",
+    "name": "Toy Workflow 1",
+    "apiVersion": "hector/v1",
+    "spec": {
+      "dag": {
+        "tasks": [
+          {
+            "name": "Concat Messages 1",
+            "component": "ConcatMessagesToyComponent"
+          },
+          {
+            "name": "Concat Messages 2",
+            "component": "ConcatMessagesToyComponent"
+          },
+          {
+            "name": "Concat Files",
+            "dependencies": [
+              "Concat Messages 1", 
+              "Concat Messages 2"
+            ],
+            "component": "ConcatFilesToyComponent"
+          },
+          {
+            "name": "Count Letters",
+            "dependencies": [
+              "Concat Files"
+            ],
+            "component": "CountLettersToyComponent"
+          }
+        ]
+      }
+    }
+}

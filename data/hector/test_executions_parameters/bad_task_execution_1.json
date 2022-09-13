@@ -1,0 +1,19 @@
+{
+    "name": "Concat Files",
+    "inputs": [
+        {
+            "name": "bad-name",
+            "value": "concat_message_1.txt"
+        },
+        {
+            "name": "input-file-2",
+            "value": "concat_message_2.txt"
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output-file",
+            "value": "concat_files.txt"
+        }
+    ]
+}

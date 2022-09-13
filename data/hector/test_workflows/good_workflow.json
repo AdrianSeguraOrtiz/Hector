@@ -6,32 +6,30 @@
       "dag": {
         "tasks": [
           {
-            "name": "",
-            "dependencies": [
-              ""
-            ],
-            "component": ""
+            "name": "A",
+            "component": "Component 1 ID"
           },
           {
-            "name": "",
+            "name": "B",
             "dependencies": [
-              ""
+              "A"
             ],
-            "component": ""
+            "component": "Component 2 ID"
           },
           {
-            "name": "",
+            "name": "C",
             "dependencies": [
-              ""
+              "A"
             ],
-            "component": ""
+            "component": "Component 3 ID"
           },
           {
-            "name": "",
+            "name": "D",
             "dependencies": [
-              ""
+              "B",
+              "C"
             ],
-            "component": ""
+            "component": "Component 4 ID"
           }
         ]
       }

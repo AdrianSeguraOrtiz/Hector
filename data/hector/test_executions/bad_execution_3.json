@@ -1,0 +1,55 @@
+{
+    "id": "Execution ID (generated)",
+    "name": "Execution Name",
+    "workflow": "Workflow ID",
+    "apiVersion": "hector/v1",
+    "data": {
+        "tasks": [
+            {
+                "name": "A",
+                "inputs": [
+                    {
+                        "name": "input_1",
+                        "value": "A"
+                    },
+                    {
+                        "name": "input_2",
+                        "value": 22
+                    }
+                ],
+                "outputs": [
+                    {
+                        "name": "output_1",
+                        "value": "path/to/output_file.csv"
+                    }
+                ]
+            },
+            {
+                "inputs": [
+                    {
+                        "name": "input_1",
+                        "value": "B"
+                    }
+                ]
+            },
+            {
+                "name": "C",
+                "inputs": [
+                    {
+                        "name": "input_1",
+                        "value": "C"
+                    }
+                ]
+            },
+            {
+                "name": "D",
+                "inputs": [
+                    {
+                        "name": "input_1",
+                        "value": "D"
+                    }
+                ]
+            }
+        ]
+    }
+}
