@@ -3,161 +3,118 @@ package main
 import (
     "fmt"
     "encoding/json"
-    "reflect"
     "dag/hector/golang/module/pkg"
-	"dag/hector/golang/module/pkg/components"
 	"dag/hector/golang/module/pkg/workflows"
     "dag/hector/golang/module/pkg/executions"
-    "dag/hector/golang/module/executors"
-    "dag/hector/golang/module/executors/mock"
-    "github.com/go-playground/validator/v10"
+    "dag/hector/golang/module/pkg/validators"
+    "dag/hector/golang/module/pkg/executors"
+    "dag/hector/golang/module/pkg/executors/execmock"
+    "dag/hector/golang/module/pkg/databases/dbmock"
     "golang.org/x/exp/slices"
     "github.com/rs/xid"
+    "flag"
 )
 
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
 func main() {
-    // Leemos y validamos todos los componentes y el workflow para almacenarlos en variables (simulando el contenido de una futura base de datos)
-    v := validator.New()
-	v.RegisterValidation("representsType", components.RepresentsType)
-	v.RegisterValidation("validDependencies", workflows.ValidDependencies)
+    // We obtain the path to the execution file provided as an input parameter
+    var executionFile string
+    flag.StringVar(&executionFile, "execution-file", "", "Execution json file path")
+    flag.Parse()
 
-    componentFiles := []string{"./data/hector/toy_components/concat_files/concat-files-component.json", "./data/hector/toy_components/concat_messages/concat-messages-component.json", "./data/hector/toy_components/count_letters/count-letters-component.json"}
-    componentStructs := make([]components.Component, 0)
-
-    for _, f := range componentFiles {
-        componentByteValue, err := pkg.ReadFile(f)
-        if err != nil {
-            fmt.Println(err)
-        }
-
-        var component components.Component
-        json.Unmarshal(componentByteValue, &component)
-
-        componentErr := v.Struct(component)
-        if componentErr != nil {
-            fmt.Println(componentErr)
-        }
-
-        componentStructs = append(componentStructs, component)
-	}
-
-    workflowFiles := []string{"./data/hector/toy_workflows/toy_workflow_1.json"}
-    workflowStructs := make([]workflows.Workflow, 0)
-
-    for _, f := range workflowFiles {
-        workflowByteValue, err := pkg.ReadFile(f)
-        if err != nil {
-            fmt.Println(err)
-        }
-
-        var workflow workflows.Workflow
-        json.Unmarshal(workflowByteValue, &workflow)
-
-        workflowErr := v.Struct(workflow)
-        if workflowErr != nil {
-            fmt.Println(workflowErr)
-        }
-
-        workflowStructs = append(workflowStructs, workflow)
-	}
-
-    // Extraemos el orden topológico de los workflows y simulamos el contenido de una segunda base de datos
-    topologicalSortOfWorkflows := make(map[string][][]string)
-    for _, w := range workflowStructs {
-        topologicalSortOfWorkflows[w.Id] = workflows.TopologicalGroupedSort(&w)
+    // We throw an error if not specified.
+    if executionFile == "" {
+        panic("Missing executionFile flag")
     }
 
-    // Aquí empezaría el verdadero código
-    // 1. Leemos el json de ejecución
-    executionFile := "./data/hector/toy_executions/toy_execution_1.json"
+    // We read the execution json file
 	executionByteValue, err := pkg.ReadFile(executionFile)
-	if err != nil {
-		fmt.Println(err)
-	}
+	check(err)
 
+    // Parse its content to the corresponding struct type
 	var execution executions.Execution
 	json.Unmarshal(executionByteValue, &execution)
 
+    // We validate its structure
+    validator := validators.Validator{}
+    executionErr := validator.ValidateExecutionStruct(&execution)
+    check(executionErr)
+
+    // We print its contents for visual verification
 	fmt.Printf("Execution: %+v\n\n", execution)
 
-    // 2. Extraemos el workflow que ejecuta y su orden topológico
-    idx := slices.IndexFunc(workflowStructs, func(w workflows.Workflow) bool { return w.Id == execution.Workflow })
-    execWorkflow := workflowStructs[idx]
-    execTasksSorted := topologicalSortOfWorkflows[execution.Workflow]
+    // We extract the associated workflow and its topological order
+    database := dbmock.DBMock{}
+    execWorkflow, err := database.GetWorkflow(execution.Workflow)
+    check(err)
+    execTasksSorted, err := database.GetTopologicalSort(execution.Workflow)
+    check(err)
 
-    // 3. Validamos el archivo de ejecución garantizando la especificación de todas las tareas y la correcta inserción de parámetros. Además construimos un vector definitivo de tareas para el ejecutador
-    // Vector bidimensional para almacenar las tareas ordenadas con el contenido necesario para su ejecución
+    // We validate that the tasks required in the workflow are specified in the execution file
+    taskValidatorErr := validator.ValidateExecutionTaskNames(&execution.Data.Tasks, &execWorkflow.Spec.Dag.Tasks)
+    check(taskValidatorErr)
+    
+    // We build a two-dimensional vector to store the topologically ordered tasks with the necessary content for their execution.
     var runTasks [][]executors.RunTask
-    // Para cada grupo de tareas ...
+
+    // For each group of tasks ...
     for _, taskGroup := range execTasksSorted {
-        // Vector unidimensional para almacenar las tareas del grupo
+
+        // One-dimensional vector for storing group tasks
         var runTasksGroup []executors.RunTask
-        // Para cada tarea dentro del grupo ...
+
+        // For each task within the group ...
         for _, taskName := range taskGroup {
-            // A. Extraemos la información de la tarea del archivo de ejecución (si no se encuentra se lanza un error)
+
+            // A. We extract the task information from the execution file
             idxExecutionTask := slices.IndexFunc(execution.Data.Tasks, func(t executions.ExecutionTask) bool { return t.Name == taskName })
-            if idxExecutionTask == -1 {
-                panic("Task " + taskName + " is required in the selected workflow but is not present in the execution file.")
-            }
             executionTask := execution.Data.Tasks[idxExecutionTask]
 
-            // B. Extraemos la información de la tarea reflejada en el workflow (principalmente para conocer el identificador de su componente)
+            // B. We extract the task information from the workflow struct (mainly to know the identifier of its component)
             idxWorkflowTask := slices.IndexFunc(execWorkflow.Spec.Dag.Tasks, func(t workflows.WorkflowTask) bool { return t.Name == taskName })
             workflowTask := execWorkflow.Spec.Dag.Tasks[idxWorkflowTask]
             componentId := workflowTask.Component
 
-            // C. Extraemos la información acerca del componente de la tarea y comprobamos que los parámetros introducidos (inputs/outputs) en el archivo de ejecución son correctos
-            idxExecComponent := slices.IndexFunc(componentStructs, func(c components.Component) bool { return c.Id == componentId })
-            execComponent := componentStructs[idxExecComponent]
+            // C. We extract the information about the task component
+            execComponent, err := database.GetComponent(componentId)
+            check(err)
 
-            // Inputs
-            for _, componentInput := range execComponent.Inputs {
-                idxExecutionInput := slices.IndexFunc(executionTask.Inputs, func(p executions.Parameter) bool { return p.Name == componentInput.Name })
-                if idxExecutionInput == -1 {
-                    panic("Input " + componentInput.Name + " is required in the " + taskName + " task but is not present in the execution file.")
-                }
-                executionInput := executionTask.Inputs[idxExecutionInput]
-                if reflect.TypeOf(executionInput.Value).String() != componentInput.Type {
-                    panic("Input " + componentInput.Name + " has an invalid value in the execution file.")
-                }
-            }
+            // D. We check that the parameters entered (inputs/outputs) in the execution file are correct
+            inputValidatorErr := validator.ValidateExecutionParameters(&executionTask.Inputs, &execComponent.Inputs)
+            check(inputValidatorErr)
+            outputValidatorErr := validator.ValidateExecutionParameters(&executionTask.Outputs, &execComponent.Outputs)
+            check(outputValidatorErr)
 
-            // Outputs
-            for _, componentOutput := range execComponent.Outputs {
-                idxExecutionOutput := slices.IndexFunc(executionTask.Outputs, func(p executions.Parameter) bool { return p.Name == componentOutput.Name })
-                if idxExecutionOutput == -1 {
-                    panic("Output " + componentOutput.Name + " is required in the " + taskName + " task but is not present in the execution file.")
-                }
-                executionOutput := executionTask.Outputs[idxExecutionOutput]
-                if reflect.TypeOf(executionOutput.Value).String() != componentOutput.Type {
-                    panic("Output " + componentOutput.Name + " has an invalid value in the execution file.")
-                }
-            }
-
-            // D. Creamos la tarea de ejecución y la añadimos a la lista de tareas del grupo
+            // E. We create the execution task
             task := executors.RunTask {
                 Id: xid.New().String(),
                 Name: taskName,
                 Image: execComponent.Container.Image,
                 Arguments: append(executionTask.Inputs, executionTask.Outputs ...),
             }
+
+            // F. We add it to the group's task list
             runTasksGroup = append(runTasksGroup, task)
         }
-        // Añadimos las tareas del grupo a la lista bidimensional
+        // We add the group's tasks to the two-dimensional list
         runTasks = append(runTasks, runTasksGroup)
     }
 
-    // 4. Comenzamos la ejecución de tareas
-    // Instanciamos el ejecutador
-    executor := mock.Mock{}
+    // Instantiate the executor
+    executor := execmock.ExecMock{}
 
-    // Para cada grupo de tareas ...
+    // For each group of tasks ...
     for _, runTaskGroup := range runTasks {
-        // Se ponen en ejecución todas las tareas del grupo
+        // All group tasks are put into execution
         for _, runTask := range runTaskGroup {
             executor.ExecuteTask(&runTask)
         }
-        // Se espera a que terminen todas las tareas del grupo antes de comenzar a ejecutar el siguiente
+        // Wait for all group tasks to be completed before starting the next group
         for _, runTask := range runTaskGroup {
             executor.Wait(runTask.Id)
         }

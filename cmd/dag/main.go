@@ -3,12 +3,12 @@ package main
 import (
 	"fmt"
     "encoding/json"
-	"github.com/go-playground/validator/v10"
 
 	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/components"
 	"dag/hector/golang/module/pkg/workflows"
 	"dag/hector/golang/module/pkg/executions"
+	"dag/hector/golang/module/pkg/validators"
 )
 
 func main() {
@@ -62,26 +62,22 @@ func main() {
 	// 2. Validation
 
 	// Initialize the validator
-	v := validator.New()
-
-	// Add custom validation functions
-	v.RegisterValidation("representsType", components.RepresentsType)
-	v.RegisterValidation("validDependencies", workflows.ValidDependencies)
+	validator := validators.Validator{}
 
 	// Component
-	componentErr := v.Struct(component)
+	componentErr := validator.ValidateComponentStruct(&component)
 	if componentErr != nil {
 		fmt.Println(componentErr)
 	}
 
 	// Workflow
-	workflowErr := v.Struct(workflow)
+	workflowErr := validator.ValidateWorkflowStruct(&workflow)
 	if workflowErr != nil {
 		fmt.Println(workflowErr)
 	}
 
 	// Execution
-	executionErr := v.Struct(execution)
+	executionErr := validator.ValidateExecutionStruct(&execution)
 	if executionErr != nil {
 		fmt.Println(executionErr)
 	}

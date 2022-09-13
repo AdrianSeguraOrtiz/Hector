@@ -1,6 +1,7 @@
 package k8s
 
-// https://dev.to/narasimha1997/create-kubernetes-jobs-in-golang-using-k8s-client-go-api-59ej
+// Since the task runner has not yet been chosen, the kubernetes implementation is on hold.
+// Resource: https://dev.to/narasimha1997/create-kubernetes-jobs-in-golang-using-k8s-client-go-api-59ej
 
 import (
 	"context"
