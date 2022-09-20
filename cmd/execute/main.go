@@ -13,6 +13,7 @@ import (
     "golang.org/x/exp/slices"
     "github.com/rs/xid"
     "flag"
+    "sync"
 )
 
 func check(e error) {
@@ -29,7 +30,7 @@ func main() {
 
     // We throw an error if not specified.
     if executionFile == "" {
-        panic("Missing executionFile flag")
+        panic("Missing --execution-file flag")
     }
 
     // We read the execution json file
@@ -60,13 +61,13 @@ func main() {
     check(taskValidatorErr)
     
     // We build a two-dimensional vector to store the topologically ordered tasks with the necessary content for their execution.
-    var runTasks [][]executors.RunTask
+    var nestedJobs [][]executors.Job
 
     // For each group of tasks ...
     for _, taskGroup := range execTasksSorted {
 
         // One-dimensional vector for storing group tasks
-        var runTasksGroup []executors.RunTask
+        var jobsGroup []executors.Job
 
         // For each task within the group ...
         for _, taskName := range taskGroup {
@@ -90,33 +91,68 @@ func main() {
             outputValidatorErr := validator.ValidateExecutionParameters(&executionTask.Outputs, &execComponent.Outputs)
             check(outputValidatorErr)
 
-            // E. We create the execution task
-            task := executors.RunTask {
+            // E. We create the execution task (job)
+            job := executors.Job {
                 Id: xid.New().String(),
                 Name: taskName,
                 Image: execComponent.Container.Image,
                 Arguments: append(executionTask.Inputs, executionTask.Outputs ...),
+                Dependencies: workflowTask.Dependencies,
             }
 
             // F. We add it to the group's task list
-            runTasksGroup = append(runTasksGroup, task)
+            jobsGroup = append(jobsGroup, job)
         }
         // We add the group's tasks to the two-dimensional list
-        runTasks = append(runTasks, runTasksGroup)
+        nestedJobs = append(nestedJobs, jobsGroup)
     }
 
     // Instantiate the executor
     executor := execmock.ExecMock{}
 
+    // We create a map for storing the results of each job
+    results := make(map[string]executors.Result)
+
     // For each group of tasks ...
-    for _, runTaskGroup := range runTasks {
-        // All group tasks are put into execution
-        for _, runTask := range runTaskGroup {
-            executor.ExecuteTask(&runTask)
+    for _, jobGroup := range nestedJobs {
+
+        // We create a waitgroup to allow waiting for all tasks belonging to the group
+        var wg sync.WaitGroup
+
+        // For each job in the group ...
+        for _, job := range jobGroup {
+
+            // If any of its dependencies has previously failed, the job is cancelled and its execution is dispensed with.
+            cancelled := false
+            for _, depName := range job.Dependencies {
+                if results[depName].Status == executors.Error || results[depName].Status == executors.Cancelled{
+                    cancelled = true
+                    results[job.Name] = executors.Result{Id: job.Id, Logs: "Cancelled due to errors in its dependencies", Status: executors.Cancelled}
+                    break
+                }
+            }
+
+            // If none of its dependencies have previously failed, it is put into execution in a goroutine.
+            /** 
+                See https://gobyexample.com/waitgroups, 
+                https://go.dev/doc/faq#closures_and_goroutines, 
+                https://stackoverflow.com/questions/18499352/golang-concurrency-how-to-append-to-the-same-slice-from-different-goroutines
+            */
+            if !cancelled {
+                wg.Add(1)
+                go func(j executors.Job) {
+                    results[j.Name] = executor.ExecuteJob(&j)
+                    wg.Done()
+                }(job)
+            }
         }
+
         // Wait for all group tasks to be completed before starting the next group
-        for _, runTask := range runTaskGroup {
-            executor.Wait(runTask.Id)
-        }
+        wg.Wait()
+    }
+
+    // Print results
+    for k, v := range results {
+        fmt.Printf(k + ": %+v\n", v)
     }
 }
