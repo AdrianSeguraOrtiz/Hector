@@ -8,7 +8,7 @@ import (
     "dag/hector/golang/module/pkg/executions"
     "dag/hector/golang/module/pkg/validators"
     "dag/hector/golang/module/pkg/executors"
-    "dag/hector/golang/module/pkg/executors/execmock"
+    "dag/hector/golang/module/pkg/executors/execgolang"
     "dag/hector/golang/module/pkg/databases/dbmock"
     "golang.org/x/exp/slices"
     "github.com/rs/xid"
@@ -108,7 +108,7 @@ func main() {
     }
 
     // Instantiate the executor
-    executor := execmock.ExecMock{}
+    executor := execgolang.ExecGolang{}
 
     // We create a map for storing the results of each job
     results := make(map[string]executors.Result)
