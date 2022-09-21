@@ -8,15 +8,10 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/executors"
 	"dag/hector/golang/module/pkg/executions"
 )
-
-func check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
 
 func readerToString(rcPointer *io.ReadCloser) (string, error) {	
 	bytes, err := io.ReadAll(*rcPointer)
@@ -54,7 +49,7 @@ func argumentsToSlice(argumentsPointer *[]executions.Parameter) []string {
 
 type ExecGolang struct {}
 
-func (eg *ExecGolang) ExecuteJob(jobPointer *executors.Job) executors.Result {
+func (eg *ExecGolang) ExecuteJob(jobPointer *executors.Job) executors.ResultJob {
 	/*
 		This function executes a job locally.
 		Based on: https://docs.docker.com/engine/api/sdk/#sdk-and-api-quickstart and https://docs.docker.com/engine/api/sdk/examples/
@@ -71,16 +66,16 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *executors.Job) executors.Result {
 
 	// Start docker client
     cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-    check(err)
+    pkg.Check(err)
 
 	// Pull image in case it is not available in the system
 	available, err := checkIfAvailable(ctx, cli, (*jobPointer).Image)
-	check(err)
+	pkg.Check(err)
 	if !available {
 		reader, err := cli.ImagePull(ctx, (*jobPointer).Image, types.ImagePullOptions{})
-		check(err)
+		pkg.Check(err)
 		pullLogs, err := readerToString(&reader)
-		check(err)
+		pkg.Check(err)
 		logs += pullLogs + "\n"
 	}
 
@@ -90,17 +85,17 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *executors.Job) executors.Result {
         Image: (*jobPointer).Image,
 		Cmd: args,
     }, nil, nil, nil, "")
-    check(err)
+    pkg.Check(err)
 
 	// We run the container
 	errCS := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
-    check(errCS)
+    pkg.Check(errCS)
 
 	// We wait for its execution to be completed.
     statusCh, errCh := cli.ContainerWait(ctx, resp.ID, container.WaitConditionNotRunning)
     select {
 		case err := <-errCh:
-			check(err)
+			pkg.Check(err)
 		case <-statusCh:
     }
 
@@ -109,19 +104,19 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *executors.Job) executors.Result {
 
 	// If the execution has reported contents in the error stream, the execution is considered failed.
     errorReader, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStderr: true})
-    check(err)
+    pkg.Check(err)
 	errorLogs, err := readerToString(&errorReader)
-	check(err)
+	pkg.Check(err)
 	if errorLogs != "" {
 		logs += errorLogs
-		return executors.Result{Id: (*jobPointer).Id, Logs: logs, Status: executors.Error}
+		return executors.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: logs, Status: executors.Error}
 	}
 
 	// Otherwise, the contents of the output stream are retrieved and the execution is considered successful.
 	execReader, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStdout: true})
-    check(err)
+    pkg.Check(err)
 	execLogs, err := readerToString(&execReader)
-	check(err)
+	pkg.Check(err)
 	logs += execLogs
-	return executors.Result{Id: (*jobPointer).Id, Logs: logs, Status: executors.Done}
+	return executors.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: logs, Status: executors.Done}
 }

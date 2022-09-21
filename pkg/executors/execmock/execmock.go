@@ -9,7 +9,7 @@ import (
 
 type ExecMock struct {}
 
-func (em *ExecMock) ExecuteJob(jobPointer *executors.Job) executors.Result {
+func (em *ExecMock) ExecuteJob(jobPointer *executors.Job) executors.ResultJob {
 	/*
 		This function simulates the execution of a job.
 	*/
@@ -25,8 +25,8 @@ func (em *ExecMock) ExecuteJob(jobPointer *executors.Job) executors.Result {
 
 	// We return the result of the execution, occasionally simulating the production of an error during it.
 	if (rand.Float64() < 0.5) {
-		return executors.Result{Id: (*jobPointer).Id, Logs: "File not found exception", Status: executors.Error}
+		return executors.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: "File not found exception", Status: executors.Error}
 	} else {
-		return executors.Result{Id: (*jobPointer).Id, Logs: "All right", Status: executors.Done}
+		return executors.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: "All right", Status: executors.Done}
 	}
 }

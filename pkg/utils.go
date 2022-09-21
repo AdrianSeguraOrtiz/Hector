@@ -5,6 +5,12 @@ import (
 	"io/ioutil"
 )
 
+func Check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
+
 func ReadFile(str string) ([]byte, error) {
 	// Open jsonFile
 	jsonFile, err := os.Open(str)

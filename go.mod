@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/docker/docker v20.10.18+incompatible
 	github.com/go-playground/validator/v10 v10.11.0
+	github.com/gorilla/mux v1.8.0
 	github.com/rs/xid v1.4.0
 	golang.org/x/exp v0.0.0-20220909124645-60527bc9bd40
 	k8s.io/api v0.20.2

@@ -6,6 +6,8 @@ import (
 	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/components"
 	"dag/hector/golang/module/pkg/workflows"
+    "dag/hector/golang/module/pkg/executions"
+    "dag/hector/golang/module/pkg/executors"
     "dag/hector/golang/module/pkg/validators"
     "golang.org/x/exp/slices"
 )
@@ -17,8 +19,8 @@ func (dbm *DBMock) GetWorkflow(id string) (workflows.Workflow, error) {
         Performs a query to extract a workflow given its identifier
     */
 
-    idx := slices.IndexFunc(database.workflowStructs, func(w workflows.Workflow) bool { return w.Id == id })
-    execWorkflow := database.workflowStructs[idx]
+    idx := slices.IndexFunc(database.WorkflowStructs, func(w workflows.Workflow) bool { return w.Id == id })
+    execWorkflow := database.WorkflowStructs[idx]
     return execWorkflow, nil
 }
 
@@ -27,7 +29,7 @@ func (dbm *DBMock) GetTopologicalSort(id string) ([][]string, error) {
         Performs a query to extract the topological order of a workflow given its identifier
     */
 
-    execTasksSorted := database.topologicalSortOfWorkflows[id]
+    execTasksSorted := database.TopologicalSortOfWorkflows[id]
     return execTasksSorted, nil
 }
 
@@ -36,9 +38,46 @@ func (dbm *DBMock) GetComponent(id string) (components.Component, error) {
         Performs a query to extract a component given its identifier
     */
 
-    idx := slices.IndexFunc(database.componentStructs, func(c components.Component) bool { return c.Id == id })
-    execComponent := database.componentStructs[idx]
+    idx := slices.IndexFunc(database.ComponentStructs, func(c components.Component) bool { return c.Id == id })
+    execComponent := database.ComponentStructs[idx]
     return execComponent, nil
+}
+
+func (dbm *DBMock) GetResultExecution(id string) (executors.ResultExecution, error) {
+    /*
+        Performs a query to extract a result execution given its identifier
+    */
+
+    idx := slices.IndexFunc(database.ResultExecutionStructs, func(re executors.ResultExecution) bool { return re.Id == id })
+    resultExecution := database.ResultExecutionStructs[idx]
+    return resultExecution, nil
+}
+
+func (dbm *DBMock) AddWorkflow(workflowPointer *workflows.Workflow) error {
+    /*
+        Insert workflow in database
+    */
+
+    database.WorkflowStructs = append(database.WorkflowStructs, *workflowPointer)
+    return nil
+}
+
+func (dbm *DBMock) AddExecution(executionPointer *executions.Execution) error {
+    /*
+        Insert execution in database
+    */
+
+    database.ExecutionStructs = append(database.ExecutionStructs, *executionPointer)
+    return nil
+}
+
+func (dbm *DBMock) AddResultExecution(resultExecutionPointer *executors.ResultExecution) error {
+    /*
+        Insert result execution in database
+    */
+
+    database.ResultExecutionStructs = append(database.ResultExecutionStructs, *resultExecutionPointer)
+    return nil
 }
 
 
@@ -46,9 +85,11 @@ func (dbm *DBMock) GetComponent(id string) (components.Component, error) {
 
 // We create a struct type to store the information that should be contained in the supposed database
 type Database struct {
-	componentStructs			[]components.Component
-	workflowStructs				[]workflows.Workflow
-	topologicalSortOfWorkflows	map[string][][]string
+	ComponentStructs			[]components.Component
+	WorkflowStructs				[]workflows.Workflow
+    ExecutionStructs			[]executions.Execution
+    ResultExecutionStructs		[]executors.ResultExecution
+	TopologicalSortOfWorkflows	map[string][][]string
 }
 
 // We create a global variable of this type and we feed it by reading and validating local toy files
@@ -113,8 +154,8 @@ func mock() (Database) {
 
     // Return database struct
 	return Database {
-		componentStructs: componentStructs, 
-		workflowStructs: workflowStructs, 
-		topologicalSortOfWorkflows: topologicalSortOfWorkflows,
+		ComponentStructs: componentStructs, 
+		WorkflowStructs: workflowStructs, 
+		TopologicalSortOfWorkflows: topologicalSortOfWorkflows,
 	}
 }
