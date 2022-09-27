@@ -1,70 +1,88 @@
 package main
 
 import (
-    "fmt"
-    "encoding/json"
-    "dag/hector/golang/module/pkg"
-    "dag/hector/golang/module/pkg/executions"
-    "dag/hector/golang/module/pkg/validators"
-    "dag/hector/golang/module/pkg/executors"
-    "dag/hector/golang/module/pkg/executors/execgolang"
-    "dag/hector/golang/module/pkg/databases"
-    "dag/hector/golang/module/pkg/databases/dbmock"
-    "flag"
+	"dag/hector/golang/module/pkg/databases"
+	"dag/hector/golang/module/pkg/databases/dbmock"
+	"dag/hector/golang/module/pkg/definitions"
+	"dag/hector/golang/module/pkg/executors"
+	"dag/hector/golang/module/pkg/executors/execgolang"
+	"dag/hector/golang/module/pkg/results"
+	"dag/hector/golang/module/pkg/validators"
+	"flag"
+	"fmt"
 )
 
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
+}
 
 func main() {
-    // We obtain the path to the execution file provided as an input parameter
-    var executionFile string
-    flag.StringVar(&executionFile, "execution-file", "", "Execution json file path")
-    flag.Parse()
+	// We obtain the path to the definition file provided as an input parameter
+	var definitionFile string
+	flag.StringVar(&definitionFile, "definition-file", "", "Definition json file path")
+	flag.Parse()
 
-    // We throw an error if not specified.
-    if executionFile == "" {
-        panic("Missing --execution-file flag")
-    }
+	// We throw an error if not specified.
+	if definitionFile == "" {
+		panic("Missing --definition-file flag")
+	}
 
-    // We read the execution json file
-	executionByteValue, err := pkg.ReadFile(executionFile)
-	pkg.Check(err)
+	// Parse its content to the corresponding struct type
+	var definition definitions.Definition
+	fileErr := definition.FromFile(definitionFile)
+	check(fileErr)
 
-    // Parse its content to the corresponding struct type
-	var execution executions.Execution
-	json.Unmarshal(executionByteValue, &execution)
+	// We validate its structure
+	validatorPointer := validators.NewValidator()
+	definitionErr := (*validatorPointer).ValidateDefinitionStruct(&definition)
+	check(definitionErr)
 
-    // We validate its structure
-    validator := validators.Validator{}
-    executionErr := validator.ValidateExecutionStruct(&execution)
-    pkg.Check(executionErr)
+	// We print its contents for visual verification
+	fmt.Println("Definition: ", definition.String())
 
-    // We print its contents for visual verification
-	fmt.Printf("Execution: %+v\n\n", execution)
+	// Instantiate the database
+	var database databases.Database
+	database = &(dbmock.DBMock{})
 
-    // Instantiate the database
-    var database databases.Database
-    database = &(dbmock.DBMock{})
+	// Add definition to database
+	addDefErr := database.AddDefinition(&definition)
+	check(addDefErr)
 
-    // Instantiate the executor
-    var executor executors.Executor
-    executor = &(execgolang.ExecGolang{})
+	// Instantiate the executor
+	var executor executors.Executor
+	executor = &(execgolang.ExecGolang{})
 
-    // Get jobs in topological order
-    nestedJobs := databases.GetJobs(&execution, &database, &validator)
+	// Get jobs in topological order
+	nestedJobs, err := databases.GetJobs(&definition, &database, validatorPointer)
+	check(err)
 
-    // Execute jobs
-    jobResults := executors.ExecuteJobs(&nestedJobs, &executor)
+	// Get/Create definition result
+	resultDefinition, err := database.GetResultDefinition(definition.Id)
+	switch err.(type) {
+	case *databases.ElementNotFoundErr:
+		{
+			fmt.Println(err.Error(), "A new document is created.")
+			resultDefinition = results.ResultDefinition{
+				Id:              definition.Id,
+				Name:            definition.Name,
+				SpecificationId: definition.SpecificationId,
+				Jobs:            []results.ResultJob{},
+			}
+			err := database.AddResultDefinition(&resultDefinition)
+			check(err)
+		}
+	default:
+		check(err)
+	}
 
-    // Create execution result
-    resultExecution := executors.ResultExecution{
-        Id: execution.Id,
-        Name: execution.Name,
-        Workflow: execution.Workflow,
-        Jobs: jobResults,
-    }
+	// Execute jobs
+	fmt.Println("\nExecution:")
+	resultDefinition.Jobs, err = executors.ExecuteJobs(&nestedJobs, &executor, &resultDefinition, &database)
+	check(err)
 
-    // Add execution and executionResult to database
-    database.AddExecution(&execution)
-    database.AddResultExecution(&resultExecution)
+	// Print result definition
+	fmt.Println("\nResult: ", resultDefinition.String())
 
 }

@@ -2,70 +2,71 @@ package validators
 
 import (
 	"dag/hector/golang/module/pkg/components"
-	"dag/hector/golang/module/pkg/workflows"
-	"dag/hector/golang/module/pkg/executions"
-	"github.com/go-playground/validator/v10"
-	"golang.org/x/exp/slices"
+	"dag/hector/golang/module/pkg/definitions"
+	"dag/hector/golang/module/pkg/specifications"
 	"errors"
 	"reflect"
+
+	"github.com/go-playground/validator/v10"
+	"golang.org/x/exp/slices"
 )
 
-type Validator struct {}
+type Validator struct {
+	Validator *validator.Validate
+}
+
+// Creamos un constructor específico para nuestro problema
+func NewValidator() *Validator {
+	val := Validator{}
+
+	v := validator.New()
+	v.RegisterValidation("representsType", components.RepresentsType)
+	v.RegisterValidation("validDependencies", specifications.ValidDependencies)
+
+	val.Validator = v
+
+	return &val
+}
 
 func (val *Validator) ValidateComponentStruct(componentPointer *components.Component) error {
-	// Initialize the validator
-	v := validator.New()
-
-	// Add custom validation function
-	v.RegisterValidation("representsType", components.RepresentsType)
-
-	// Validate
+	v := val.Validator
 	componentErr := v.Struct(*componentPointer)
 	return componentErr
 }
 
-func (val *Validator) ValidateWorkflowStruct(workflowPointer *workflows.Workflow) error {
-	// Initialize the validator
-	v := validator.New()
-
-	// Add custom validation function
-	v.RegisterValidation("validDependencies", workflows.ValidDependencies)
-
-	// Validate
-	workflowErr := v.Struct(*workflowPointer)
-	return workflowErr
+func (val *Validator) ValidateSpecificationStruct(specificationPointer *specifications.Specification) error {
+	v := val.Validator
+	specificationErr := v.Struct(*specificationPointer)
+	return specificationErr
 }
 
-func (val *Validator) ValidateExecutionStruct(executionPointer *executions.Execution) error {
-	// Initialize the validator
-	v := validator.New()
-
-	// Validate
-	executionErr := v.Struct(*executionPointer)
-	return executionErr
+func (val *Validator) ValidateDefinitionStruct(definitionPointer *definitions.Definition) error {
+	v := val.Validator
+	definitionErr := v.Struct(*definitionPointer)
+	return definitionErr
 }
 
-func (val *Validator) ValidateExecutionTaskNames(executionTaskArrayPointer *[]executions.ExecutionTask, workflowTaskArrayPointer *[]workflows.WorkflowTask) error {
-	// For each task defined in the workflow, its specification in the execution file is checked.
-	for _, workflowTask := range *workflowTaskArrayPointer {
-		idxExecutionTask := slices.IndexFunc(*executionTaskArrayPointer, func(t executions.ExecutionTask) bool { return t.Name == workflowTask.Name })
-		if idxExecutionTask == -1 {
-			return errors.New("Task " + workflowTask.Name + " is required in the selected workflow but is not present in the execution file.")
+func (val *Validator) ValidateDefinitionTaskNames(definitionTaskArrayPointer *[]definitions.DefinitionTask, specificationTaskArrayPointer *[]specifications.SpecificationTask) error {
+	// For each task defined in the specification, its specification in the definition file is checked.
+	for _, specificationTask := range *specificationTaskArrayPointer {
+		idxDefinitionTask := slices.IndexFunc(*definitionTaskArrayPointer, func(t definitions.DefinitionTask) bool { return t.Name == specificationTask.Name })
+		if idxDefinitionTask == -1 {
+			return errors.New("Task " + specificationTask.Name + " is required in the selected specification but is not present in the definition file.")
 		}
 	}
 	return nil
 }
 
-func (val *Validator) ValidateExecutionParameters(executionParameterArrayPointer *[]executions.Parameter, workflowPutArrayPointer *[]components.Put) error {
-	// For each parameter defined in the workflow, it is checked that the execution file includes it and associates a valid value for it.
-	for _, componentPut := range *workflowPutArrayPointer {
-		idxExecutionParameter := slices.IndexFunc(*executionParameterArrayPointer, func(p executions.Parameter) bool { return p.Name == componentPut.Name })
-		if idxExecutionParameter == -1 {
-			return errors.New("Parameter " + componentPut.Name + " is required but is not present in the execution file.")
+func (val *Validator) ValidateDefinitionParameters(definitionParameterArrayPointer *[]definitions.Parameter, specificationPutArrayPointer *[]components.Put) error {
+	// For each parameter defined in the specification, it is checked that the definition file includes it and associates a valid value for it.
+	for _, componentPut := range *specificationPutArrayPointer {
+		idxDefinitionParameter := slices.IndexFunc(*definitionParameterArrayPointer, func(p definitions.Parameter) bool { return p.Name == componentPut.Name })
+		if idxDefinitionParameter == -1 {
+			return errors.New("Parameter " + componentPut.Name + " is required but is not present in the definition file.")
 		}
-		executionParameter := (*executionParameterArrayPointer)[idxExecutionParameter]
-		if reflect.TypeOf(executionParameter.Value).String() != componentPut.Type {
-			return errors.New("Parameter " + componentPut.Name + " has an invalid value in the execution file.")
+		definitionParameter := (*definitionParameterArrayPointer)[idxDefinitionParameter]
+		if reflect.TypeOf(definitionParameter.Value).String() != componentPut.Type {
+			return errors.New("Parameter " + componentPut.Name + " has an invalid value in the definition file.")
 		}
 	}
 	return nil

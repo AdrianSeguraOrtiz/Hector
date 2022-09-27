@@ -1,6 +1,6 @@
 {
-    "id": "Workflow ID (ruta)",
-    "name": "Workflow Name",
+    "id": "Specification ID (ruta)",
+    "name": "Specification Name",
     "apiVersion": "hector/v1",
     "spec": {
       "dag": {

@@ -1,5 +1,4 @@
 {
-    "id": "Specification ID (ruta)",
     "name": "Specification Name",
     "apiVersion": "hector/v1",
     "spec": {
@@ -7,28 +6,29 @@
         "tasks": [
           {
             "name": "A",
-            "component": ""
+            "component": "Component 1 ID"
           },
           {
             "name": "B",
             "dependencies": [
-              "C"
+              "A"
             ],
-            "component": ""
+            "component": "Component 2 ID"
           },
           {
             "name": "C",
             "dependencies": [
               "A"
             ],
-            "component": ""
+            "component": "Component 3 ID"
           },
           {
             "name": "D",
             "dependencies": [
-              "B"
+              "B",
+              "C"
             ],
-            "component": ""
+            "component": "Component 4 ID"
           }
         ]
       }

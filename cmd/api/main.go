@@ -1,12 +1,12 @@
 package main
 
 import (
+	"dag/hector/golang/module/pkg/api"
 	"log"
 	"net/http"
-	"dag/hector/golang/module/api"
 )
 
 func main() {
-	a := api.NewApi()
-	log.Fatal(http.ListenAndServe(":8080", a.router))
+	apiPointer := api.NewApi()
+	log.Fatal(http.ListenAndServe(":8080", (*apiPointer).Router))
 }

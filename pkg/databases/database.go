@@ -1,84 +1,111 @@
 package databases
 
 import (
-	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/components"
-	"dag/hector/golang/module/pkg/workflows"
-	"dag/hector/golang/module/pkg/executions"
-	"dag/hector/golang/module/pkg/executors"
+	"dag/hector/golang/module/pkg/definitions"
+	"dag/hector/golang/module/pkg/jobs"
+	"dag/hector/golang/module/pkg/results"
+	"dag/hector/golang/module/pkg/specifications"
 	"dag/hector/golang/module/pkg/validators"
-	"golang.org/x/exp/slices"
+
 	"github.com/rs/xid"
+	"golang.org/x/exp/slices"
 )
 
-type Database interface {
-	GetWorkflow(id string) (workflows.Workflow, error)
-	GetTopologicalSort(id string) ([][]string, error)
-	GetComponent(id string) (components.Component, error)
-    GetResultExecution(id string) (executors.ResultExecution, error)
-    AddWorkflow(workflowPointer *workflows.Workflow) error
-	AddExecution(executionPointer *executions.Execution) error
-	AddResultExecution(resultExecutionPointer *executors.ResultExecution) error
+type ElementNotFoundErr struct {
+	Type string
+	Id   string
 }
 
+func (e *ElementNotFoundErr) Error() string {
+	return e.Type + " with id " + e.Id + " not found in database."
+}
 
-func GetJobs(executionPointer *executions.Execution, databasePointer *Database, validatorPointer *validators.Validator) [][]executors.Job {
-    // We extract the associated workflow and its topological order
-    execWorkflow, err := (*databasePointer).GetWorkflow((*executionPointer).Workflow)
-    pkg.Check(err)
-    execTasksSorted, err := (*databasePointer).GetTopologicalSort((*executionPointer).Workflow)
-    pkg.Check(err)
+type Database interface {
+	GetComponent(id string) (components.Component, error)
+	GetSpecification(id string) (specifications.Specification, error)
+	GetTopologicalSort(id string) ([][]string, error)
+	GetDefinition(id string) (definitions.Definition, error)
+	GetResultDefinition(id string) (results.ResultDefinition, error)
 
-    // We validate that the tasks required in the workflow are specified in the execution file
-    taskValidatorErr := (*validatorPointer).ValidateExecutionTaskNames(&(*executionPointer).Data.Tasks, &execWorkflow.Spec.Dag.Tasks)
-    pkg.Check(taskValidatorErr)
-    
-    // We build a two-dimensional vector to store the topologically ordered tasks with the necessary content for their execution.
-    var nestedJobs [][]executors.Job
+	AddComponent(componentPointer *components.Component) error
+	AddSpecification(specificationPointer *specifications.Specification) error
+	AddTopologicalSort(planning [][]string, specificationId string) error
+	AddDefinition(definitionPointer *definitions.Definition) error
+	AddResultDefinition(resultDefinitionPointer *results.ResultDefinition) error
 
-    // For each group of tasks ...
-    for _, taskGroup := range execTasksSorted {
+	UpdateResultJob(resultJobPointer *results.ResultJob, resultDefinitionId string) error
+}
 
-        // One-dimensional vector for storing group tasks
-        var jobsGroup []executors.Job
+func GetJobs(definitionPointer *definitions.Definition, databasePointer *Database, validatorPointer *validators.Validator) ([][]jobs.Job, error) {
+	// We extract the associated specification and its topological order
+	specification, err := (*databasePointer).GetSpecification((*definitionPointer).SpecificationId)
+	if err != nil {
+		return nil, err
+	}
+	planning, err := (*databasePointer).GetTopologicalSort((*definitionPointer).SpecificationId)
+	if err != nil {
+		return nil, err
+	}
 
-        // For each task within the group ...
-        for _, taskName := range taskGroup {
+	// We validate that the tasks required in the specification are specified in the definition file
+	taskValidatorErr := (*validatorPointer).ValidateDefinitionTaskNames(&(*definitionPointer).Data.Tasks, &specification.Spec.Dag.Tasks)
+	if taskValidatorErr != nil {
+		return nil, taskValidatorErr
+	}
 
-            // A. We extract the task information from the execution file
-            idxExecutionTask := slices.IndexFunc((*executionPointer).Data.Tasks, func(t executions.ExecutionTask) bool { return t.Name == taskName })
-            executionTask := (*executionPointer).Data.Tasks[idxExecutionTask]
+	// We build a two-dimensional vector to store the topologically ordered tasks with the necessary content for their definition.
+	var nestedJobs [][]jobs.Job
 
-            // B. We extract the task information from the workflow struct (mainly to know the identifier of its component)
-            idxWorkflowTask := slices.IndexFunc(execWorkflow.Spec.Dag.Tasks, func(t workflows.WorkflowTask) bool { return t.Name == taskName })
-            workflowTask := execWorkflow.Spec.Dag.Tasks[idxWorkflowTask]
-            componentId := workflowTask.Component
+	// For each group of tasks ...
+	for _, taskGroup := range planning {
 
-            // C. We extract the information about the task component
-            execComponent, err := (*databasePointer).GetComponent(componentId)
-            pkg.Check(err)
+		// One-dimensional vector for storing group tasks
+		var jobsGroup []jobs.Job
 
-            // D. We check that the parameters entered (inputs/outputs) in the execution file are correct
-            inputValidatorErr := (*validatorPointer).ValidateExecutionParameters(&executionTask.Inputs, &execComponent.Inputs)
-            pkg.Check(inputValidatorErr)
-            outputValidatorErr := (*validatorPointer).ValidateExecutionParameters(&executionTask.Outputs, &execComponent.Outputs)
-            pkg.Check(outputValidatorErr)
+		// For each task within the group ...
+		for _, taskName := range taskGroup {
 
-            // E. We create the execution task (job)
-            job := executors.Job {
-                Id: xid.New().String(),
-                Name: taskName,
-                Image: execComponent.Container.Image,
-                Arguments: append(executionTask.Inputs, executionTask.Outputs ...),
-                Dependencies: workflowTask.Dependencies,
-            }
+			// A. We extract the task information from the definition file
+			idxDefinitionTask := slices.IndexFunc((*definitionPointer).Data.Tasks, func(t definitions.DefinitionTask) bool { return t.Name == taskName })
+			definitionTask := (*definitionPointer).Data.Tasks[idxDefinitionTask]
 
-            // F. We add it to the group's task list
-            jobsGroup = append(jobsGroup, job)
-        }
-        // We add the group's tasks to the two-dimensional list
-        nestedJobs = append(nestedJobs, jobsGroup)
-    }
+			// B. We extract the task information from the specification struct (mainly to know the identifier of its component)
+			idxSpecificationTask := slices.IndexFunc(specification.Spec.Dag.Tasks, func(t specifications.SpecificationTask) bool { return t.Name == taskName })
+			specificationTask := specification.Spec.Dag.Tasks[idxSpecificationTask]
+			componentId := specificationTask.Component
 
-    return nestedJobs
+			// C. We extract the information about the task component
+			execComponent, err := (*databasePointer).GetComponent(componentId)
+			if err != nil {
+				return nil, err
+			}
+
+			// D. We check that the parameters entered (inputs/outputs) in the definition file are correct
+			inputValidatorErr := (*validatorPointer).ValidateDefinitionParameters(&definitionTask.Inputs, &execComponent.Inputs)
+			if inputValidatorErr != nil {
+				return nil, inputValidatorErr
+			}
+			outputValidatorErr := (*validatorPointer).ValidateDefinitionParameters(&definitionTask.Outputs, &execComponent.Outputs)
+			if outputValidatorErr != nil {
+				return nil, outputValidatorErr
+			}
+
+			// E. We create the definition task (job)
+			job := jobs.Job{
+				Id:           xid.New().String(),
+				Name:         taskName,
+				Image:        execComponent.Container.Image,
+				Arguments:    append(definitionTask.Inputs, definitionTask.Outputs...),
+				Dependencies: specificationTask.Dependencies,
+			}
+
+			// F. We add it to the group's task list
+			jobsGroup = append(jobsGroup, job)
+		}
+		// We add the group's tasks to the two-dimensional list
+		nestedJobs = append(nestedJobs, jobsGroup)
+	}
+
+	return nestedJobs, nil
 }

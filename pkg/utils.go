@@ -1,15 +1,9 @@
 package pkg
 
 import (
-	"os"
 	"io/ioutil"
+	"os"
 )
-
-func Check(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
 
 func ReadFile(str string) ([]byte, error) {
 	// Open jsonFile
@@ -19,7 +13,7 @@ func ReadFile(str string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Defer the closing of the jsonFile
 	defer jsonFile.Close()
 
