@@ -44,7 +44,7 @@ func main() {
 
 	// Instantiate the database
 	var database databases.Database
-	database = &(dbmock.DBMock{})
+	database = dbmock.NewDBMock()
 
 	// Add definition to database
 	addDefErr := database.AddDefinition(&definition)

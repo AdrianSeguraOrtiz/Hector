@@ -21,6 +21,15 @@ func (e *ElementNotFoundErr) Error() string {
 	return e.Type + " with id " + e.Id + " not found in database."
 }
 
+type DuplicateIDErr struct {
+	Type string
+	Id   string
+}
+
+func (e *DuplicateIDErr) Error() string {
+	return "A " + e.Type + " with id " + e.Id + " is already stored in the database."
+}
+
 type Database interface {
 	GetComponent(id string) (components.Component, error)
 	GetSpecification(id string) (specifications.Specification, error)

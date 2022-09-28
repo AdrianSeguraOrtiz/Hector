@@ -6,7 +6,7 @@ import (
 	"dag/hector/golang/module/pkg/definitions"
 	"dag/hector/golang/module/pkg/specifications"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"path/filepath"
 	"testing"
 )
@@ -34,7 +34,7 @@ func TestValidateComponentStruct(t *testing.T) {
 			componentErr := validator.ValidateComponentStruct(&component)
 
 			if componentErr == nil {
-				componentErr = errors.New("")
+				componentErr = fmt.Errorf("")
 			}
 			if componentErr.Error() != tt.want {
 				t.Error("got ", componentErr, ", want ", tt.want)
@@ -65,7 +65,7 @@ func TestValidateSpecificationStruct(t *testing.T) {
 			specificationErr := validator.ValidateSpecificationStruct(&specification)
 
 			if specificationErr == nil {
-				specificationErr = errors.New("")
+				specificationErr = fmt.Errorf("")
 			}
 			if specificationErr.Error() != tt.want {
 				t.Error("got ", specificationErr, ", want ", tt.want)
@@ -96,7 +96,7 @@ func TestValidateDefinitionStruct(t *testing.T) {
 			definitionErr := validator.ValidateDefinitionStruct(&definition)
 
 			if definitionErr == nil {
-				definitionErr = errors.New("")
+				definitionErr = fmt.Errorf("")
 			}
 			if definitionErr.Error() != tt.want {
 				t.Error("got ", definitionErr, ", want ", tt.want)
@@ -130,7 +130,7 @@ func TestValidateDefinitionTaskNames(t *testing.T) {
 			taskValidatorErr := validator.ValidateDefinitionTaskNames(&definition.Data.Tasks, &specification.Spec.Dag.Tasks)
 
 			if taskValidatorErr == nil {
-				taskValidatorErr = errors.New("")
+				taskValidatorErr = fmt.Errorf("")
 			}
 			if taskValidatorErr.Error() != tt.want {
 				t.Error("got ", taskValidatorErr, ", want ", tt.want)
@@ -167,7 +167,7 @@ func TestValidateDefinitionParameters(t *testing.T) {
 			putValidatorErr := validator.ValidateDefinitionParameters(&puts, &parameters)
 
 			if putValidatorErr == nil {
-				putValidatorErr = errors.New("")
+				putValidatorErr = fmt.Errorf("")
 			}
 			if putValidatorErr.Error() != tt.want {
 				t.Error("got ", putValidatorErr, ", want ", tt.want)

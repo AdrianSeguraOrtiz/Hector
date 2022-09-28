@@ -7,24 +7,37 @@ import (
 	"dag/hector/golang/module/pkg/results"
 	"dag/hector/golang/module/pkg/specifications"
 	"dag/hector/golang/module/pkg/validators"
-	"errors"
 	"fmt"
 
 	"golang.org/x/exp/slices"
 )
 
-type DBMock struct{}
+// We create a struct type to store the information that should be contained in the supposed database
+type DBMock struct {
+	ComponentStructs                []components.Component
+	SpecificationStructs            []specifications.Specification
+	TopologicalSortOfSpecifications map[string][][]string
+	DefinitionStructs               []definitions.Definition
+	ResultDefinitionStructs         []results.ResultDefinition
+}
+
+// We create a specific constructor for our problem
+func NewDBMock() *DBMock {
+	db := DBMock{}
+	db.ComponentStructs, db.SpecificationStructs, db.TopologicalSortOfSpecifications = mock()
+	return &db
+}
 
 func (dbm *DBMock) GetComponent(id string) (components.Component, error) {
 	/*
 	   Performs a query to extract a component given its identifier
 	*/
 
-	idx := slices.IndexFunc(database.ComponentStructs, func(c components.Component) bool { return c.Id == id })
+	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == id })
 	if idx == -1 {
 		return components.Component{}, &databases.ElementNotFoundErr{Type: "Component", Id: id}
 	}
-	component := database.ComponentStructs[idx]
+	component := dbm.ComponentStructs[idx]
 	return component, nil
 }
 
@@ -33,11 +46,11 @@ func (dbm *DBMock) GetSpecification(id string) (specifications.Specification, er
 	   Performs a query to extract a specification given its identifier
 	*/
 
-	idx := slices.IndexFunc(database.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == id })
+	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == id })
 	if idx == -1 {
 		return specifications.Specification{}, &databases.ElementNotFoundErr{Type: "Specification", Id: id}
 	}
-	specification := database.SpecificationStructs[idx]
+	specification := dbm.SpecificationStructs[idx]
 	return specification, nil
 }
 
@@ -46,9 +59,9 @@ func (dbm *DBMock) GetTopologicalSort(id string) ([][]string, error) {
 	   Performs a query to extract the topological order of a specification given its identifier
 	*/
 
-	planning := database.TopologicalSortOfSpecifications[id]
+	planning := dbm.TopologicalSortOfSpecifications[id]
 	if len(planning) == 0 {
-		return nil, &databases.ElementNotFoundErr{Type: "Planning", Id: id}
+		return nil, &databases.ElementNotFoundErr{Type: "Topological Sort", Id: id}
 	}
 	return planning, nil
 }
@@ -58,11 +71,11 @@ func (dbm *DBMock) GetDefinition(id string) (definitions.Definition, error) {
 	   Performs a query to extract a definition given its identifier
 	*/
 
-	idx := slices.IndexFunc(database.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == id })
+	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == id })
 	if idx == -1 {
 		return definitions.Definition{}, &databases.ElementNotFoundErr{Type: "Definition", Id: id}
 	}
-	definition := database.DefinitionStructs[idx]
+	definition := dbm.DefinitionStructs[idx]
 	return definition, nil
 }
 
@@ -71,11 +84,11 @@ func (dbm *DBMock) GetResultDefinition(id string) (results.ResultDefinition, err
 	   Performs a query to extract a result definition given its identifier
 	*/
 
-	idx := slices.IndexFunc(database.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == id })
+	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == id })
 	if idx == -1 {
 		return results.ResultDefinition{}, &databases.ElementNotFoundErr{Type: "Result Definition", Id: id}
 	}
-	resultDefinition := database.ResultDefinitionStructs[idx]
+	resultDefinition := dbm.ResultDefinitionStructs[idx]
 	return resultDefinition, nil
 }
 
@@ -84,7 +97,11 @@ func (dbm *DBMock) AddComponent(componentPointer *components.Component) error {
 	   Insert component in database
 	*/
 
-	database.ComponentStructs = append(database.ComponentStructs, *componentPointer)
+	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == (*componentPointer).Id })
+	if idx != -1 {
+		return &databases.DuplicateIDErr{Type: "Component", Id: (*componentPointer).Id}
+	}
+	dbm.ComponentStructs = append(dbm.ComponentStructs, *componentPointer)
 	return nil
 }
 
@@ -93,7 +110,11 @@ func (dbm *DBMock) AddSpecification(specificationPointer *specifications.Specifi
 	   Insert specification in database
 	*/
 
-	database.SpecificationStructs = append(database.SpecificationStructs, *specificationPointer)
+	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == (*specificationPointer).Id })
+	if idx != -1 {
+		return &databases.DuplicateIDErr{Type: "Specification", Id: (*specificationPointer).Id}
+	}
+	dbm.SpecificationStructs = append(dbm.SpecificationStructs, *specificationPointer)
 	return nil
 }
 
@@ -102,7 +123,10 @@ func (dbm *DBMock) AddTopologicalSort(planning [][]string, specificationId strin
 	   Insert topological sort in database
 	*/
 
-	database.TopologicalSortOfSpecifications[specificationId] = planning
+	if _, exists := dbm.TopologicalSortOfSpecifications[specificationId]; exists {
+		return &databases.DuplicateIDErr{Type: "Topological Sort", Id: specificationId}
+	}
+	dbm.TopologicalSortOfSpecifications[specificationId] = planning
 	return nil
 }
 
@@ -111,7 +135,11 @@ func (dbm *DBMock) AddDefinition(definitionPointer *definitions.Definition) erro
 	   Insert definition in database
 	*/
 
-	database.DefinitionStructs = append(database.DefinitionStructs, *definitionPointer)
+	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == (*definitionPointer).Id })
+	if idx != -1 {
+		return &databases.DuplicateIDErr{Type: "Definition", Id: (*definitionPointer).Id}
+	}
+	dbm.DefinitionStructs = append(dbm.DefinitionStructs, *definitionPointer)
 	return nil
 }
 
@@ -120,7 +148,11 @@ func (dbm *DBMock) AddResultDefinition(resultDefinitionPointer *results.ResultDe
 	   Insert result definition in database
 	*/
 
-	database.ResultDefinitionStructs = append(database.ResultDefinitionStructs, *resultDefinitionPointer)
+	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == (*resultDefinitionPointer).Id })
+	if idx != -1 {
+		return &databases.DuplicateIDErr{Type: "Result Definition", Id: (*resultDefinitionPointer).Id}
+	}
+	dbm.ResultDefinitionStructs = append(dbm.ResultDefinitionStructs, *resultDefinitionPointer)
 	return nil
 }
 
@@ -128,38 +160,24 @@ func (dbm *DBMock) UpdateResultJob(resultJobPointer *results.ResultJob, resultDe
 	/*
 		Update Result Job into Result Definition in database
 	*/
-	idxResultDefinition := slices.IndexFunc(database.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == resultDefinitionId })
+	idxResultDefinition := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == resultDefinitionId })
 	if idxResultDefinition == -1 {
-		return errors.New("Could not find Result Definition in database")
+		return fmt.Errorf("Could not find Result Definition in database")
 	}
-	resultDefinition := database.ResultDefinitionStructs[idxResultDefinition]
+	resultDefinition := dbm.ResultDefinitionStructs[idxResultDefinition]
 	idxResultJob := slices.IndexFunc(resultDefinition.Jobs, func(jobRes results.ResultJob) bool { return jobRes.Id == (*resultJobPointer).Id })
 	if idxResultJob == -1 {
 		resultDefinition.Jobs = append(resultDefinition.Jobs, *resultJobPointer)
 	} else {
 		resultDefinition.Jobs[idxResultJob] = *resultJobPointer
 	}
-	database.ResultDefinitionStructs[idxResultDefinition] = resultDefinition
+	dbm.ResultDefinitionStructs[idxResultDefinition] = resultDefinition
 
 	return nil
 }
 
 // Mocking process
-
-// We create a struct type to store the information that should be contained in the supposed database
-type Database struct {
-	ComponentStructs                []components.Component
-	SpecificationStructs            []specifications.Specification
-	TopologicalSortOfSpecifications map[string][][]string
-	DefinitionStructs               []definitions.Definition
-	ResultDefinitionStructs         []results.ResultDefinition
-}
-
-// We create a global variable of this type and we feed it by reading and validating local toy files
-var database Database = mock()
-
-// We create a function to encapsulate the whole process of reading and extraction of local data
-func mock() Database {
+func mock() ([]components.Component, []specifications.Specification, map[string][][]string) {
 	/*
 	   This function is responsible for extracting the list of components, specifications and topological sorts.
 	*/
@@ -205,10 +223,6 @@ func mock() Database {
 		topologicalSortOfSpecifications[w.Id] = specifications.TopologicalGroupedSort(&w)
 	}
 
-	// Return database struct
-	return Database{
-		ComponentStructs:                componentStructs,
-		SpecificationStructs:            specificationStructs,
-		TopologicalSortOfSpecifications: topologicalSortOfSpecifications,
-	}
+	// Return data
+	return componentStructs, specificationStructs, topologicalSortOfSpecifications
 }

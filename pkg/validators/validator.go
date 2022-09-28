@@ -4,7 +4,7 @@ import (
 	"dag/hector/golang/module/pkg/components"
 	"dag/hector/golang/module/pkg/definitions"
 	"dag/hector/golang/module/pkg/specifications"
-	"errors"
+	"fmt"
 	"reflect"
 
 	"github.com/go-playground/validator/v10"
@@ -15,7 +15,7 @@ type Validator struct {
 	Validator *validator.Validate
 }
 
-// Creamos un constructor específico para nuestro problema
+// We create a specific constructor for our problem
 func NewValidator() *Validator {
 	val := Validator{}
 
@@ -28,45 +28,48 @@ func NewValidator() *Validator {
 	return &val
 }
 
+// Validate Component schema
 func (val *Validator) ValidateComponentStruct(componentPointer *components.Component) error {
 	v := val.Validator
 	componentErr := v.Struct(*componentPointer)
 	return componentErr
 }
 
+// Validate Specification schema
 func (val *Validator) ValidateSpecificationStruct(specificationPointer *specifications.Specification) error {
 	v := val.Validator
 	specificationErr := v.Struct(*specificationPointer)
 	return specificationErr
 }
 
+// Validate Definition schema
 func (val *Validator) ValidateDefinitionStruct(definitionPointer *definitions.Definition) error {
 	v := val.Validator
 	definitionErr := v.Struct(*definitionPointer)
 	return definitionErr
 }
 
+// For each task defined in the specification, its information in the definition file is checked.
 func (val *Validator) ValidateDefinitionTaskNames(definitionTaskArrayPointer *[]definitions.DefinitionTask, specificationTaskArrayPointer *[]specifications.SpecificationTask) error {
-	// For each task defined in the specification, its specification in the definition file is checked.
 	for _, specificationTask := range *specificationTaskArrayPointer {
 		idxDefinitionTask := slices.IndexFunc(*definitionTaskArrayPointer, func(t definitions.DefinitionTask) bool { return t.Name == specificationTask.Name })
 		if idxDefinitionTask == -1 {
-			return errors.New("Task " + specificationTask.Name + " is required in the selected specification but is not present in the definition file.")
+			return fmt.Errorf("Task " + specificationTask.Name + " is required in the selected specification but is not present in the definition file.")
 		}
 	}
 	return nil
 }
 
+// For each parameter defined in the specification, it is checked that the definition file includes it and associates a valid value for it.
 func (val *Validator) ValidateDefinitionParameters(definitionParameterArrayPointer *[]definitions.Parameter, specificationPutArrayPointer *[]components.Put) error {
-	// For each parameter defined in the specification, it is checked that the definition file includes it and associates a valid value for it.
 	for _, componentPut := range *specificationPutArrayPointer {
 		idxDefinitionParameter := slices.IndexFunc(*definitionParameterArrayPointer, func(p definitions.Parameter) bool { return p.Name == componentPut.Name })
 		if idxDefinitionParameter == -1 {
-			return errors.New("Parameter " + componentPut.Name + " is required but is not present in the definition file.")
+			return fmt.Errorf("Parameter " + componentPut.Name + " is required but is not present in the definition file.")
 		}
 		definitionParameter := (*definitionParameterArrayPointer)[idxDefinitionParameter]
 		if reflect.TypeOf(definitionParameter.Value).String() != componentPut.Type {
-			return errors.New("Parameter " + componentPut.Name + " has an invalid value in the definition file.")
+			return fmt.Errorf("Parameter " + componentPut.Name + " has an invalid value in the definition file.")
 		}
 	}
 	return nil

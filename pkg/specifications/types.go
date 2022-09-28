@@ -2,8 +2,6 @@ package specifications
 
 import (
 	"dag/hector/golang/module/pkg"
-	"io/ioutil"
-	"net/http"
 
 	"encoding/json"
 
@@ -57,17 +55,6 @@ func (spec *Specification) String() string {
 
 func (spec *Specification) FromFile(file string) error {
 	content, err := pkg.ReadFile(file)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(content, spec); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (spec *Specification) FromRequest(req *http.Request) error {
-	content, err := ioutil.ReadAll(req.Body)
 	if err != nil {
 		return err
 	}
