@@ -160,16 +160,17 @@ func (dbm *DBMock) UpdateResultJob(resultJobPointer *results.ResultJob, resultDe
 	/*
 		Update Result Job into Result Definition in database
 	*/
+
 	idxResultDefinition := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == resultDefinitionId })
 	if idxResultDefinition == -1 {
 		return fmt.Errorf("Could not find Result Definition in database")
 	}
 	resultDefinition := dbm.ResultDefinitionStructs[idxResultDefinition]
-	idxResultJob := slices.IndexFunc(resultDefinition.Jobs, func(jobRes results.ResultJob) bool { return jobRes.Id == (*resultJobPointer).Id })
+	idxResultJob := slices.IndexFunc(resultDefinition.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Id == (*resultJobPointer).Id })
 	if idxResultJob == -1 {
-		resultDefinition.Jobs = append(resultDefinition.Jobs, *resultJobPointer)
+		resultDefinition.ResultJobs = append(resultDefinition.ResultJobs, *resultJobPointer)
 	} else {
-		resultDefinition.Jobs[idxResultJob] = *resultJobPointer
+		resultDefinition.ResultJobs[idxResultJob] = *resultJobPointer
 	}
 	dbm.ResultDefinitionStructs[idxResultDefinition] = resultDefinition
 

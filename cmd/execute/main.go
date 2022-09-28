@@ -3,6 +3,7 @@ package main
 import (
 	"dag/hector/golang/module/pkg/databases"
 	"dag/hector/golang/module/pkg/databases/dbmock"
+	"dag/hector/golang/module/pkg/databases/sqlite3"
 	"dag/hector/golang/module/pkg/definitions"
 	"dag/hector/golang/module/pkg/executors"
 	"dag/hector/golang/module/pkg/executors/execgolang"
@@ -68,7 +69,7 @@ func main() {
 				Id:              definition.Id,
 				Name:            definition.Name,
 				SpecificationId: definition.SpecificationId,
-				Jobs:            []results.ResultJob{},
+				ResultJobs:      []results.ResultJob{},
 			}
 			err := database.AddResultDefinition(&resultDefinition)
 			check(err)
@@ -79,10 +80,19 @@ func main() {
 
 	// Execute jobs
 	fmt.Println("\nExecution:")
-	resultDefinition.Jobs, err = executors.ExecuteJobs(&nestedJobs, &executor, &resultDefinition, &database)
+	resultDefinition.ResultJobs, err = executors.ExecuteJobs(&nestedJobs, &executor, &resultDefinition, &database)
+	check(err)
+
+	// Check sqlite3
+	sqldb, err := sqlite3.NewSQLite3()
+	check(err)
+
+	AddErr := sqldb.AddResultDefinition(&resultDefinition)
+	check(AddErr)
+	rddb, err := sqldb.GetResultDefinition(resultDefinition.Id)
 	check(err)
 
 	// Print result definition
-	fmt.Println("\nResult: ", resultDefinition.String())
+	fmt.Println(rddb.String())
 
 }

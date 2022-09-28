@@ -6,8 +6,11 @@ require (
 	github.com/docker/docker v20.10.18+incompatible
 	github.com/go-playground/validator/v10 v10.11.0
 	github.com/gorilla/mux v1.8.0
+	github.com/lib/pq v1.10.7
+	github.com/mattn/go-sqlite3 v1.14.15
 	github.com/rs/xid v1.4.0
 	golang.org/x/exp v0.0.0-20220909124645-60527bc9bd40
+	golang.org/x/sync v0.0.0-20220923202941-7f9b1623fab7
 	k8s.io/api v0.20.2
 	k8s.io/apimachinery v0.20.2
 	k8s.io/client-go v0.20.2
@@ -41,7 +44,6 @@ require (
 	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3 // indirect
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d // indirect
-	golang.org/x/sync v0.0.0-20220923202941-7f9b1623fab7 // indirect
 	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
 	golang.org/x/text v0.3.7 // indirect

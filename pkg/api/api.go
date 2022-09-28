@@ -204,7 +204,7 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 				Id:              definition.Id,
 				Name:            definition.Name,
 				SpecificationId: definition.SpecificationId,
-				Jobs:            []results.ResultJob{},
+				ResultJobs:      []results.ResultJob{},
 			}
 			err := a.Database.AddResultDefinition(&resultDefinition)
 			if err != nil {
@@ -222,7 +222,7 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Execute jobs
-	resultDefinition.Jobs, err = executors.ExecuteJobs(&nestedJobs, &a.Executor, &resultDefinition, &a.Database)
+	resultDefinition.ResultJobs, err = executors.ExecuteJobs(&nestedJobs, &a.Executor, &resultDefinition, &a.Database)
 	if err != nil {
 		log.Printf("Error during execution", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)

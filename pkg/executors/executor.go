@@ -22,7 +22,7 @@ func ExecuteJobs(nestedJobsPointer *[][]jobs.Job, executorPointer *Executor, res
 	mutex := &sync.RWMutex{}
 
 	// We fill the map with the input Result Definition (remote storage)
-	for _, jobRes := range (*resultDefinitionPointer).Jobs {
+	for _, jobRes := range (*resultDefinitionPointer).ResultJobs {
 		jobResults[jobRes.Name] = jobRes
 	}
 

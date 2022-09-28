@@ -22,7 +22,7 @@ type ResultDefinition struct {
 	Id              string
 	Name            string
 	SpecificationId string
-	Jobs            []ResultJob
+	ResultJobs      []ResultJob
 }
 
 func (rdef *ResultDefinition) String() string {
