@@ -43,23 +43,23 @@ func (dbsql *SQLite3) GetResultDefinition(id string) (results.ResultDefinition, 
 	   Performs a query to extract a result definition given its identifier
 	*/
 
-	// Definimos la query
-	query := `SELECT id, name, specification_id FROM resultdefinition WHERE id=?`
+	// Define the query for the resultdefinition table
+	selectResultDefinition := `SELECT id, name, specification_id FROM resultdefinition WHERE id=?`
 
-	// Preparamos la petición
-	statement, err := dbsql.Database.Prepare(query)
+	// We prepare the request corresponding to the query of resultdefinition
+	statementResultDefinition, err := dbsql.Database.Prepare(selectResultDefinition)
 	if err != nil {
 		return results.ResultDefinition{}, err
 	}
 
-	// Nos aseguramos de cerrar el recurso antes de finalizar
-	defer statement.Close()
+	// We make sure to close the resource before the end of the function.
+	defer statementResultDefinition.Close()
 
-	// Creamos un struct vacio
+	// We create an empty struct to later store the resulting data
 	resultDefinition := results.ResultDefinition{}
 
-	// Ejecutamos la petición y metemos los resultados en los campos del struct
-	selectErr := statement.QueryRow(id).Scan(
+	// Execute the request and enter the results in the struct fields.
+	selectErr := statementResultDefinition.QueryRow(id).Scan(
 		&resultDefinition.Id,
 		&resultDefinition.Name,
 		&resultDefinition.SpecificationId,
@@ -68,48 +68,52 @@ func (dbsql *SQLite3) GetResultDefinition(id string) (results.ResultDefinition, 
 		return results.ResultDefinition{}, selectErr
 	}
 
-	// Definimos la query
-	query = `SELECT id, name, logs, status FROM resultjob WHERE result_definition_id=?`
+	// Define the query for the resultjob table
+	selectResultJob := `SELECT id, name, logs, status FROM resultjob WHERE result_definition_id=?`
 
-	// Preparamos la petición
-	statement, err = dbsql.Database.Prepare(query)
+	// We prepare the request corresponding to the query of resultjob
+	statementResultJob, err := dbsql.Database.Prepare(selectResultJob)
 	if err != nil {
 		return results.ResultDefinition{}, err
 	}
 
-	// Nos aseguramos de cerrar el recurso antes de finalizar
-	defer statement.Close()
+	// We make sure to close the resource before the end of the function.
+	defer statementResultJob.Close()
 
-	// Ejecutamos la query
-	rows, err := statement.Query(id)
+	// We execute the request and since it will have more than one solution, we store the result in the variable rows.
+	rows, err := statementResultJob.Query(id)
 	if err != nil {
 		return results.ResultDefinition{}, err
 	}
 
-	// Nos aseguramos de cerrar el recurso antes de finalizar
+	// We make sure to close the resource before the end of the function.
 	defer rows.Close()
 
-	// Declaramos un slice de result jobs para almacenar los resultados
+	// We declare a slice of result jobs to store the results
 	resultJobs := []results.ResultJob{}
 
-	// El método Next retorna un bool, mientras sea true indicará que existe un valor siguiente para leer.
+	// The Next method returns a bool, as long as it is true it will indicate that there is a next value to read.
 	for rows.Next() {
-		// Escaneamos el valor actual de la fila e insertamos la salida en los correspondientes campos del result job.
+
+		// We create an empty resultJob to later store the data of the current row.
 		resJob := results.ResultJob{}
+
+		// We insert the output in the corresponding fields of the resultJob.
 		rows.Scan(
 			&resJob.Id,
 			&resJob.Name,
 			&resJob.Logs,
 			&resJob.Status,
 		)
-		// Añadimos el result job al slice que declaramos antes.
+
+		// We add the resultJob to the slice we declared before.
 		resultJobs = append(resultJobs, resJob)
 	}
 
-	// Añadimos el slice de result jobs al result definition
+	// Add the resultJobs slice to the resultDefinition
 	resultDefinition.ResultJobs = resultJobs
 
-	// Devolvemos el result definition
+	// We return the resultDefinition
 	return resultDefinition, nil
 }
 
@@ -118,21 +122,21 @@ func (dbsql *SQLite3) AddResultDefinition(resultDefinitionPointer *results.Resul
 	   Insert result definition in database
 	*/
 
-	// Definimos la query
-	query := `INSERT INTO resultdefinition (id, name, specification_id)
+	// Define the query for the resultDefinition table
+	insertResultDefinition := `INSERT INTO resultdefinition (id, name, specification_id)
             VALUES(?, ?, ?)`
 
-	// Preparamos la petición
-	statement, err := dbsql.Database.Prepare(query)
+	// We prepare the request corresponding to the query of resultDefinition
+	statementResultDefinition, err := dbsql.Database.Prepare(insertResultDefinition)
 	if err != nil {
 		return err
 	}
 
-	// Nos aseguramos de cerrar el recurso antes de finalizar
-	defer statement.Close()
+	// We make sure to close the resource before the end of the function.
+	defer statementResultDefinition.Close()
 
-	// Ejecutamos la petición pasando los datos correspondientes.
-	r, err := statement.Exec(
+	// We execute the request passing the corresponding data.
+	r, err := statementResultDefinition.Exec(
 		(*resultDefinitionPointer).Id,
 		(*resultDefinitionPointer).Name,
 		(*resultDefinitionPointer).SpecificationId,
@@ -141,27 +145,27 @@ func (dbsql *SQLite3) AddResultDefinition(resultDefinitionPointer *results.Resul
 		return err
 	}
 
-	// Confirmamos que una fila ha sido afectada
+	// We confirm that a row has been affected in the table of resultDefinition
 	if i, err := r.RowsAffected(); err != nil || i != 1 {
-		return fmt.Errorf("Se esperaba una fila afectada")
+		return fmt.Errorf("An affected row was expected")
 	}
 
-	// Definimos la query
-	query = `INSERT INTO resultjob (id, result_definition_id, name, logs, status)
+	// Define the query for the resultJob table
+	insertResultJob := `INSERT INTO resultjob (id, result_definition_id, name, logs, status)
             VALUES(?, ?, ?, ?, ?)`
 
-	// Preparamos la petición
-	statement, err = dbsql.Database.Prepare(query)
+	// We prepare the request corresponding to the query of resultJob
+	statementResultJob, err := dbsql.Database.Prepare(insertResultJob)
 	if err != nil {
 		return err
 	}
 
-	// Nos aseguramos de cerrar el recurso antes de finalizar
-	defer statement.Close()
+	// We make sure to close the resource before the end of the function.
+	defer statementResultJob.Close()
 
-	// Ejecutamos la petición pasando los datos correspondientes.
+	// For each resultJob we execute the request passing the corresponding data.
 	for _, resJob := range (*resultDefinitionPointer).ResultJobs {
-		r, err := statement.Exec(
+		r, err := statementResultJob.Exec(
 			resJob.Id,
 			(*resultDefinitionPointer).Id,
 			resJob.Name,
@@ -172,11 +176,12 @@ func (dbsql *SQLite3) AddResultDefinition(resultDefinitionPointer *results.Resul
 			return err
 		}
 
-		// Confirmamos que una fila ha sido afectada
+		// In each iteration we confirm that a row has been affected in the resultJob table.
 		if i, err := r.RowsAffected(); err != nil || i != 1 {
-			return fmt.Errorf("Se esperaba una fila afectada")
+			return fmt.Errorf("An affected row was expected")
 		}
 	}
 
+	// If everything went well, we do not return any errors.
 	return nil
 }
