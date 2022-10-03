@@ -21,7 +21,7 @@ type Data struct {
 }
 
 type Definition struct {
-	Id              string `json:"id" validate:"required"`
+	Id              string `json:"id" validate:"isdefault"`
 	Name            string `json:"name" validate:"required"`
 	SpecificationId string `json:"specificationId" validate:"required"`
 	ApiVersion      string `json:"apiVersion" validate:"required"`

@@ -6,7 +6,6 @@ import (
 	"dag/hector/golang/module/pkg/definitions"
 	"dag/hector/golang/module/pkg/results"
 	"dag/hector/golang/module/pkg/specifications"
-	"dag/hector/golang/module/pkg/validators"
 	"fmt"
 
 	"golang.org/x/exp/slices"
@@ -24,7 +23,7 @@ type DBMock struct {
 // We create a specific constructor for our problem
 func NewDBMock() *DBMock {
 	db := DBMock{}
-	db.ComponentStructs, db.SpecificationStructs, db.TopologicalSortOfSpecifications = mock()
+	db.TopologicalSortOfSpecifications = make(map[string][][]string)
 	return &db
 }
 
@@ -175,55 +174,4 @@ func (dbm *DBMock) UpdateResultJob(resultJobPointer *results.ResultJob, resultDe
 	dbm.ResultDefinitionStructs[idxResultDefinition] = resultDefinition
 
 	return nil
-}
-
-// Mocking process
-func mock() ([]components.Component, []specifications.Specification, map[string][][]string) {
-	/*
-	   This function is responsible for extracting the list of components, specifications and topological sorts.
-	*/
-
-	// Initialize the validator
-	validatorPointer := validators.NewValidator()
-
-	// Components
-	componentFiles := []string{"./data/hector/toy_components/concat_files/concat-files-component.json", "./data/hector/toy_components/concat_messages/concat-messages-component.json", "./data/hector/toy_components/count_letters/count-letters-component.json"}
-	componentStructs := make([]components.Component, 0)
-
-	for _, f := range componentFiles {
-		var component components.Component
-		component.FromFile(f)
-
-		componentErr := validatorPointer.ValidateComponentStruct(&component)
-		if componentErr != nil {
-			fmt.Println(componentErr)
-		}
-
-		componentStructs = append(componentStructs, component)
-	}
-
-	// Specifications
-	specificationFiles := []string{"./data/hector/toy_specifications/toy_specification_1.json"}
-	specificationStructs := make([]specifications.Specification, 0)
-
-	for _, f := range specificationFiles {
-		var specification specifications.Specification
-		specification.FromFile(f)
-
-		specificationErr := validatorPointer.ValidateSpecificationStruct(&specification)
-		if specificationErr != nil {
-			fmt.Println(specificationErr)
-		}
-
-		specificationStructs = append(specificationStructs, specification)
-	}
-
-	// Topological sorts
-	topologicalSortOfSpecifications := make(map[string][][]string)
-	for _, w := range specificationStructs {
-		topologicalSortOfSpecifications[w.Id] = specifications.TopologicalGroupedSort(&w)
-	}
-
-	// Return data
-	return componentStructs, specificationStructs, topologicalSortOfSpecifications
 }

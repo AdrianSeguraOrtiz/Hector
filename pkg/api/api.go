@@ -17,6 +17,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/xid"
 )
 
 // Api is a structured type containing a field with a router, database, validator and task executor.
@@ -176,10 +177,11 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Generate random id
+	definition.Id = xid.New().String()
+
 	// Add definition to database
 	addDefErr := a.Database.AddDefinition(&definition)
-
-	// TODO???: Ignore duplicate id error? If there is a crash during execution and it is restarted?
 	if addDefErr != nil {
 		log.Printf("Error while trying to insert the definition in the database", addDefErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -228,6 +230,10 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
+	// If everything has gone well, we set the status to satisfactory and return the execution id
+	fmt.Println(definition.Id)
+	w.WriteHeader(http.StatusOK)
 }
 
 // Functions for GET {ID} types
