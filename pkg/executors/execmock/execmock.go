@@ -10,6 +10,10 @@ import (
 
 type ExecMock struct{}
 
+func NewExecMock() *ExecMock {
+	return &ExecMock{}
+}
+
 func (em *ExecMock) ExecuteJob(jobPointer *jobs.Job) (results.ResultJob, error) {
 	/*
 		This function simulates the definition of a job.

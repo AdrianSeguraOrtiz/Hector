@@ -7,6 +7,9 @@ import (
 )
 
 func main() {
-	apiPointer := api.NewApi()
+	apiPointer, err := api.NewApi("mock", "topological_grouped", "mock")
+	if err != nil {
+		panic(err)
+	}
 	log.Fatal(http.ListenAndServe(":8080", (*apiPointer).Router))
 }

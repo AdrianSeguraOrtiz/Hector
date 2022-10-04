@@ -2,14 +2,10 @@ package api
 
 import (
 	"dag/hector/golang/module/pkg/components"
-	"dag/hector/golang/module/pkg/databases"
-	"dag/hector/golang/module/pkg/databases/dbmock"
+	"dag/hector/golang/module/pkg/controllers"
 	"dag/hector/golang/module/pkg/definitions"
-	"dag/hector/golang/module/pkg/executors"
-	"dag/hector/golang/module/pkg/executors/execgolang"
 	"dag/hector/golang/module/pkg/results"
 	"dag/hector/golang/module/pkg/specifications"
-	"dag/hector/golang/module/pkg/validators"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -22,10 +18,8 @@ import (
 
 // Api is a structured type containing a field with a router, database, validator and task executor.
 type Api struct {
-	Router    http.Handler
-	Database  databases.Database
-	Validator validators.Validator
-	Executor  executors.Executor
+	Router     http.Handler
+	Controller *controllers.Controller
 }
 
 // Element is an interface that encompasses all the types collected in the database.
@@ -83,7 +77,7 @@ func readAndValidateElement[V Element](f func(*V) error, w http.ResponseWriter, 
 }
 
 // We create a specific constructor for our problem
-func NewApi() *Api {
+func NewApi(tool string, strategy string, repo string) (*Api, error) {
 	a := Api{}
 
 	r := mux.NewRouter()
@@ -97,11 +91,13 @@ func NewApi() *Api {
 	r.HandleFunc("/result/get/{ID}", a.getResultDefinition).Methods(http.MethodGet)
 	a.Router = r
 
-	a.Database = dbmock.NewDBMock()
-	a.Validator = *validators.NewValidator()
-	a.Executor = &(execgolang.ExecGolang{})
+	c, err := controllers.NewController(tool, strategy, repo)
+	if err != nil {
+		return nil, err
+	}
+	a.Controller = c
 
-	return &a
+	return &a, nil
 }
 
 // Submit Component function
@@ -111,7 +107,7 @@ func (a *Api) submitComponent(w http.ResponseWriter, r *http.Request) {
 	*/
 
 	// Read component from body and validate scheme
-	component, err := readAndValidateElement(a.Validator.ValidateComponentStruct, w, r)
+	component, err := readAndValidateElement(a.Controller.Validator.ValidateComponentStruct, w, r)
 	if err != nil {
 		log.Printf(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -119,7 +115,7 @@ func (a *Api) submitComponent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add component to database
-	databaseErr := a.Database.AddComponent(&component)
+	databaseErr := (*a.Controller.Database).AddComponent(&component)
 	if databaseErr != nil {
 		log.Printf("Error during insertion into the database", databaseErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -134,7 +130,7 @@ func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
 	*/
 
 	// Read specification from body and validate scheme
-	specification, err := readAndValidateElement(a.Validator.ValidateSpecificationStruct, w, r)
+	specification, err := readAndValidateElement(a.Controller.Validator.ValidateSpecificationStruct, w, r)
 	if err != nil {
 		log.Printf(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -144,10 +140,15 @@ func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
 	// TODO???: Check that components are too in database ...
 
 	// Calculate topological sort
-	planning := specifications.TopologicalGroupedSort(&specification)
+	planning, err := (*a.Controller.Scheduler).Plan(&specification)
+	if err != nil {
+		log.Printf("Error during planning calculation", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	// Add topological sort to database
-	databasePlanningErr := a.Database.AddTopologicalSort(planning, specification.Id)
+	databasePlanningErr := (*a.Controller.Database).AddTopologicalSort(planning, specification.Id)
 	if databasePlanningErr != nil {
 		log.Printf("Error during insertion into the database", databasePlanningErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -155,7 +156,7 @@ func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add specification to database
-	databaseSpecErr := a.Database.AddSpecification(&specification)
+	databaseSpecErr := (*a.Controller.Database).AddSpecification(&specification)
 	if databaseSpecErr != nil {
 		log.Printf("Error during insertion into the database", databaseSpecErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -170,7 +171,7 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 	*/
 
 	// Read definition from body and validate scheme
-	definition, err := readAndValidateElement(a.Validator.ValidateDefinitionStruct, w, r)
+	definition, err := readAndValidateElement(a.Controller.Validator.ValidateDefinitionStruct, w, r)
 	if err != nil {
 		log.Printf(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -181,52 +182,16 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 	definition.Id = xid.New().String()
 
 	// Add definition to database
-	addDefErr := a.Database.AddDefinition(&definition)
+	addDefErr := (*a.Controller.Database).AddDefinition(&definition)
 	if addDefErr != nil {
 		log.Printf("Error while trying to insert the definition in the database", addDefErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	// Get jobs in topological order
-	nestedJobs, err := databases.GetJobs(&definition, &a.Database, &a.Validator)
+	_, invErr := a.Controller.Invoke(&definition)
 	if err != nil {
-		log.Printf("Error while trying to get jobs", err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	// Get/Create definition result
-	resultDefinition, err := a.Database.GetResultDefinition(definition.Id)
-	switch err.(type) {
-	case *databases.ElementNotFoundErr:
-		{
-			log.Printf(err.Error() + " A new document is created.")
-			resultDefinition = results.ResultDefinition{
-				Id:              definition.Id,
-				Name:            definition.Name,
-				SpecificationId: definition.SpecificationId,
-				ResultJobs:      []results.ResultJob{},
-			}
-			err := a.Database.AddResultDefinition(&resultDefinition)
-			if err != nil {
-				log.Printf("Error during insertion into the database", err.Error())
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-		}
-	default:
-		if err != nil {
-			log.Printf(err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// Execute jobs
-	resultDefinition.ResultJobs, err = executors.ExecuteJobs(&nestedJobs, &a.Executor, &resultDefinition, &a.Database)
-	if err != nil {
-		log.Printf("Error during execution", err.Error())
+		log.Printf("Error during invocation of the definition", invErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -238,21 +203,21 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 
 // Functions for GET {ID} types
 func (a *Api) getComponent(w http.ResponseWriter, r *http.Request) {
-	getElement(a.Database.GetComponent, w, r)
+	getElement((*a.Controller.Database).GetComponent, w, r)
 }
 
 func (a *Api) getSpecification(w http.ResponseWriter, r *http.Request) {
-	getElement(a.Database.GetSpecification, w, r)
+	getElement((*a.Controller.Database).GetSpecification, w, r)
 }
 
 func (a *Api) getTopologicalSort(w http.ResponseWriter, r *http.Request) {
-	getElement(a.Database.GetTopologicalSort, w, r)
+	getElement((*a.Controller.Database).GetTopologicalSort, w, r)
 }
 
 func (a *Api) getDefinition(w http.ResponseWriter, r *http.Request) {
-	getElement(a.Database.GetDefinition, w, r)
+	getElement((*a.Controller.Database).GetDefinition, w, r)
 }
 
 func (a *Api) getResultDefinition(w http.ResponseWriter, r *http.Request) {
-	getElement(a.Database.GetResultDefinition, w, r)
+	getElement((*a.Controller.Database).GetResultDefinition, w, r)
 }

@@ -2,11 +2,10 @@ package dbmock
 
 import (
 	"dag/hector/golang/module/pkg/components"
-	"dag/hector/golang/module/pkg/databases"
 	"dag/hector/golang/module/pkg/definitions"
+	"dag/hector/golang/module/pkg/errors"
 	"dag/hector/golang/module/pkg/results"
 	"dag/hector/golang/module/pkg/specifications"
-	"fmt"
 
 	"golang.org/x/exp/slices"
 )
@@ -34,7 +33,7 @@ func (dbm *DBMock) GetComponent(id string) (components.Component, error) {
 
 	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == id })
 	if idx == -1 {
-		return components.Component{}, &databases.ElementNotFoundErr{Type: "Component", Id: id}
+		return components.Component{}, &errors.ElementNotFoundErr{Type: "Component", Id: id}
 	}
 	component := dbm.ComponentStructs[idx]
 	return component, nil
@@ -47,7 +46,7 @@ func (dbm *DBMock) GetSpecification(id string) (specifications.Specification, er
 
 	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == id })
 	if idx == -1 {
-		return specifications.Specification{}, &databases.ElementNotFoundErr{Type: "Specification", Id: id}
+		return specifications.Specification{}, &errors.ElementNotFoundErr{Type: "Specification", Id: id}
 	}
 	specification := dbm.SpecificationStructs[idx]
 	return specification, nil
@@ -60,7 +59,7 @@ func (dbm *DBMock) GetTopologicalSort(id string) ([][]string, error) {
 
 	planning := dbm.TopologicalSortOfSpecifications[id]
 	if len(planning) == 0 {
-		return nil, &databases.ElementNotFoundErr{Type: "Topological Sort", Id: id}
+		return nil, &errors.ElementNotFoundErr{Type: "Topological Sort", Id: id}
 	}
 	return planning, nil
 }
@@ -72,7 +71,7 @@ func (dbm *DBMock) GetDefinition(id string) (definitions.Definition, error) {
 
 	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == id })
 	if idx == -1 {
-		return definitions.Definition{}, &databases.ElementNotFoundErr{Type: "Definition", Id: id}
+		return definitions.Definition{}, &errors.ElementNotFoundErr{Type: "Definition", Id: id}
 	}
 	definition := dbm.DefinitionStructs[idx]
 	return definition, nil
@@ -85,7 +84,7 @@ func (dbm *DBMock) GetResultDefinition(id string) (results.ResultDefinition, err
 
 	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == id })
 	if idx == -1 {
-		return results.ResultDefinition{}, &databases.ElementNotFoundErr{Type: "Result Definition", Id: id}
+		return results.ResultDefinition{}, &errors.ElementNotFoundErr{Type: "Result Definition", Id: id}
 	}
 	resultDefinition := dbm.ResultDefinitionStructs[idx]
 	return resultDefinition, nil
@@ -98,7 +97,7 @@ func (dbm *DBMock) AddComponent(componentPointer *components.Component) error {
 
 	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == (*componentPointer).Id })
 	if idx != -1 {
-		return &databases.DuplicateIDErr{Type: "Component", Id: (*componentPointer).Id}
+		return &errors.DuplicateIDErr{Type: "Component", Id: (*componentPointer).Id}
 	}
 	dbm.ComponentStructs = append(dbm.ComponentStructs, *componentPointer)
 	return nil
@@ -111,7 +110,7 @@ func (dbm *DBMock) AddSpecification(specificationPointer *specifications.Specifi
 
 	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == (*specificationPointer).Id })
 	if idx != -1 {
-		return &databases.DuplicateIDErr{Type: "Specification", Id: (*specificationPointer).Id}
+		return &errors.DuplicateIDErr{Type: "Specification", Id: (*specificationPointer).Id}
 	}
 	dbm.SpecificationStructs = append(dbm.SpecificationStructs, *specificationPointer)
 	return nil
@@ -123,7 +122,7 @@ func (dbm *DBMock) AddTopologicalSort(planning [][]string, specificationId strin
 	*/
 
 	if _, exists := dbm.TopologicalSortOfSpecifications[specificationId]; exists {
-		return &databases.DuplicateIDErr{Type: "Topological Sort", Id: specificationId}
+		return &errors.DuplicateIDErr{Type: "Topological Sort", Id: specificationId}
 	}
 	dbm.TopologicalSortOfSpecifications[specificationId] = planning
 	return nil
@@ -136,7 +135,7 @@ func (dbm *DBMock) AddDefinition(definitionPointer *definitions.Definition) erro
 
 	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == (*definitionPointer).Id })
 	if idx != -1 {
-		return &databases.DuplicateIDErr{Type: "Definition", Id: (*definitionPointer).Id}
+		return &errors.DuplicateIDErr{Type: "Definition", Id: (*definitionPointer).Id}
 	}
 	dbm.DefinitionStructs = append(dbm.DefinitionStructs, *definitionPointer)
 	return nil
@@ -149,7 +148,7 @@ func (dbm *DBMock) AddResultDefinition(resultDefinitionPointer *results.ResultDe
 
 	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == (*resultDefinitionPointer).Id })
 	if idx != -1 {
-		return &databases.DuplicateIDErr{Type: "Result Definition", Id: (*resultDefinitionPointer).Id}
+		return &errors.DuplicateIDErr{Type: "Result Definition", Id: (*resultDefinitionPointer).Id}
 	}
 	dbm.ResultDefinitionStructs = append(dbm.ResultDefinitionStructs, *resultDefinitionPointer)
 	return nil
@@ -162,7 +161,7 @@ func (dbm *DBMock) UpdateResultJob(resultJobPointer *results.ResultJob, resultDe
 
 	idxResultDefinition := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == resultDefinitionId })
 	if idxResultDefinition == -1 {
-		return fmt.Errorf("Could not find Result Definition in database")
+		return &errors.ElementNotFoundErr{Type: "Result Definition", Id: resultDefinitionId}
 	}
 	resultDefinition := dbm.ResultDefinitionStructs[idxResultDefinition]
 	idxResultJob := slices.IndexFunc(resultDefinition.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Id == (*resultJobPointer).Id })

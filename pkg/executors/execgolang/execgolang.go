@@ -50,6 +50,10 @@ func argumentsToSlice(argumentsPointer *[]definitions.Parameter) []string {
 
 type ExecGolang struct{}
 
+func NewExecGolang() *ExecGolang {
+	return &ExecGolang{}
+}
+
 func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (results.ResultJob, error) {
 	/*
 		This function executes a job locally.

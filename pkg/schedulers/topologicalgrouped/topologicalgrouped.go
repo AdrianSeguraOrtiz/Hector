@@ -1,35 +1,17 @@
-package specifications
+package topologicalgrouped
 
 import (
 	"dag/hector/golang/module/pkg"
+	"dag/hector/golang/module/pkg/specifications"
 )
 
-func getChildren(taskName string, tasks *[]SpecificationTask) []string {
-	/*
-		This function is in charge of extracting the dependent tasks
-		of the one specified in the entry.
+type TopologicalGrouped struct{}
 
-		It takes as input the name of the task whose children you want
-		to know, and the pointer to the total set of tasks in the specification.
-		Finally it returns as result an array with the names of the
-		children of the input task.
-	*/
-
-	// Declare the result list
-	var children []string
-
-	// Children are those tasks that contain the input task in their list of dependencies.
-	for _, task := range *tasks {
-		if pkg.Contains(task.Dependencies, taskName) {
-			children = append(children, task.Name)
-		}
-	}
-
-	// Return the result list
-	return children
+func NewTopologicalGrouped() *TopologicalGrouped {
+	return &TopologicalGrouped{}
 }
 
-func TopologicalGroupedSort(specification *Specification) [][]string {
+func (tg *TopologicalGrouped) Plan(specification *specifications.Specification) ([][]string, error) {
 	/*
 		This function establishes a grouped topological order
 		for an optimal and correct definition of tasks defined
@@ -84,5 +66,30 @@ func TopologicalGroupedSort(specification *Specification) [][]string {
 	}
 
 	// Return the output vector
-	return result
+	return result, nil
+}
+
+func getChildren(taskName string, tasks *[]specifications.SpecificationTask) []string {
+	/*
+		This function is in charge of extracting the dependent tasks
+		of the one specified in the entry.
+
+		It takes as input the name of the task whose children you want
+		to know, and the pointer to the total set of tasks in the specification.
+		Finally it returns as result an array with the names of the
+		children of the input task.
+	*/
+
+	// Declare the result list
+	var children []string
+
+	// Children are those tasks that contain the input task in their list of dependencies.
+	for _, task := range *tasks {
+		if pkg.Contains(task.Dependencies, taskName) {
+			children = append(children, task.Name)
+		}
+	}
+
+	// Return the result list
+	return children
 }
