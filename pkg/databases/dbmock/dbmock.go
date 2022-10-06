@@ -6,6 +6,7 @@ import (
 	"dag/hector/golang/module/pkg/errors"
 	"dag/hector/golang/module/pkg/results"
 	"dag/hector/golang/module/pkg/specifications"
+	"fmt"
 
 	"golang.org/x/exp/slices"
 )
@@ -173,4 +174,21 @@ func (dbm *DBMock) UpdateResultJob(resultJobPointer *results.ResultJob, resultDe
 	dbm.ResultDefinitionStructs[idxResultDefinition] = resultDefinition
 
 	return nil
+}
+
+func (dbm *DBMock) GetDefinitionsWithWaitings() ([]definitions.Definition, error) {
+	var res []definitions.Definition
+
+	for _, ResDef := range dbm.ResultDefinitionStructs {
+		idxSomeWaiting := slices.IndexFunc(ResDef.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Status == results.Waiting })
+		if idxSomeWaiting != -1 {
+			def, err := dbm.GetDefinition(ResDef.Id)
+			if err != nil {
+				return nil, fmt.Errorf("Error during definition extraction", err.Error())
+			}
+			res = append(res, def)
+		}
+	}
+
+	return res, nil
 }

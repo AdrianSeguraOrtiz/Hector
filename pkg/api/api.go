@@ -77,7 +77,7 @@ func readAndValidateElement[V Element](f func(*V) error, w http.ResponseWriter, 
 }
 
 // We create a specific constructor for our problem
-func NewApi(tool string, strategy string, repo string) (*Api, error) {
+func NewApi(controllerPointer *controllers.Controller) (*Api, error) {
 	a := Api{}
 
 	r := mux.NewRouter()
@@ -91,11 +91,7 @@ func NewApi(tool string, strategy string, repo string) (*Api, error) {
 	r.HandleFunc("/result/get/{ID}", a.getResultDefinition).Methods(http.MethodGet)
 	a.Router = r
 
-	c, err := controllers.NewController(tool, strategy, repo)
-	if err != nil {
-		return nil, err
-	}
-	a.Controller = c
+	a.Controller = controllerPointer
 
 	return &a, nil
 }

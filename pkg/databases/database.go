@@ -23,6 +23,7 @@ type Database interface {
 	AddResultDefinition(resultDefinitionPointer *results.ResultDefinition) error
 
 	UpdateResultJob(resultJobPointer *results.ResultJob, resultDefinitionId string) error
+	GetDefinitionsWithWaitings() ([]definitions.Definition, error)
 }
 
 func NewDatabase(repo string) (*Database, error) {

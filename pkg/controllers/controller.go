@@ -28,51 +28,76 @@ type Controller struct {
 }
 
 func NewController(tool string, strategy string, repo string) (*Controller, error) {
+	// Create Executor
 	ex, err := executors.NewExecutor(tool)
 	if err != nil {
 		return nil, err
 	}
 
+	// Create Scheduler
 	sc, err := schedulers.NewScheduler(strategy)
 	if err != nil {
 		return nil, err
 	}
 
+	// Create Database
 	db, err := databases.NewDatabase(repo)
 	if err != nil {
 		return nil, err
 	}
 
+	// Create Validator
 	val := validators.NewValidator()
 
+	// Return Controller pointer
 	return &Controller{Executor: ex, Scheduler: sc, Database: db, Validator: val}, nil
 }
 
 func (c *Controller) Invoke(definitionPointer *definitions.Definition) (*results.ResultDefinition, error) {
-	// Get jobs in topological order
+	/**
+	This function is responsible for the complete execution of a given definition.
+	*/
+
+	// Get jobs in topological order thanks to the scheduler while simultaneously validating the tasks
+	// and parameters exposed in the definition (must be compatible with the corresponding specification).
 	nestedJobs, err := getJobs(definitionPointer, c.Database, c.Validator)
 	if err != nil {
 		return nil, fmt.Errorf("Error while trying to get jobs", err.Error())
 	}
 
-	// Get/Create definition result
+	// If the definition already has a result in the database we download it.
 	resultDefinition, err := (*c.Database).GetResultDefinition((*definitionPointer).Id)
+
+	// Otherwise we create an empty one, set all its jobs to waiting and upload it to the database before starting the execution.
 	switch err.(type) {
 	case *errors.ElementNotFoundErr:
 		{
+			// We inform the user that a new result has been created in the database.
 			log.Printf(err.Error() + " A new document is created.")
+
+			// Create empty result definition
 			resultDefinition = results.ResultDefinition{
 				Id:              (*definitionPointer).Id,
 				Name:            (*definitionPointer).Name,
 				SpecificationId: (*definitionPointer).SpecificationId,
 				ResultJobs:      []results.ResultJob{},
 			}
+
+			// We instantiate all its works in a waiting state
+			for _, jobGroup := range nestedJobs {
+				for _, job := range jobGroup {
+					resultDefinition.ResultJobs = append(resultDefinition.ResultJobs, results.ResultJob{Id: job.Id, Name: job.Name, Status: results.Waiting})
+				}
+			}
+
+			// We add the result definition to the database
 			err := (*c.Database).AddResultDefinition(&resultDefinition)
 			if err != nil {
 				return nil, fmt.Errorf("Error during insertion into the database", err.Error())
 			}
 		}
 	default:
+		// In case of another error, it is returned in the function
 		if err != nil {
 			return nil, err
 		}
@@ -84,10 +109,17 @@ func (c *Controller) Invoke(definitionPointer *definitions.Definition) (*results
 		return nil, fmt.Errorf("Error during execution", err.Error())
 	}
 
+	// We return the pointer to the constructed result definition
 	return &resultDefinition, nil
 }
 
 func getJobs(definitionPointer *definitions.Definition, databasePointer *databases.Database, validatorPointer *validators.Validator) ([][]jobs.Job, error) {
+	/**
+	This function is responsible for extracting the jobs (minimum units of information for an execution)
+	in the order established by the scheduler. In addition, during the process it is in charge of validating
+	the consistency between the definition and the specification and components.
+	*/
+
 	// We extract the associated specification and its topological order
 	specification, err := (*databasePointer).GetSpecification((*definitionPointer).SpecificationId)
 	if err != nil {
@@ -161,6 +193,12 @@ func getJobs(definitionPointer *definitions.Definition, databasePointer *databas
 }
 
 func executeJobs(nestedJobsPointer *[][]jobs.Job, executorPointer *executors.Executor, resultDefinitionPointer *results.ResultDefinition, databasePointer *databases.Database) ([]results.ResultJob, error) {
+	/**
+	This function is responsible for executing the jobs in the order established in the
+	two-dimensional list. In addition, it stores real-time information in the database
+	in order to facilitate the resolution of cuts during execution.
+	*/
+
 	// We create a map for storing the results of each job (local storage)
 	jobResults := make(map[string]results.ResultJob)
 
