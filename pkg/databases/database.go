@@ -10,24 +10,25 @@ import (
 )
 
 type Database interface {
-	GetComponent(id string) (components.Component, error)
-	GetSpecification(id string) (specifications.Specification, error)
-	GetTopologicalSort(id string) ([][]string, error)
-	GetDefinition(id string) (definitions.Definition, error)
-	GetResultDefinition(id string) (results.ResultDefinition, error)
+	GetComponent(id string) (*components.Component, error)
+	GetSpecification(id string) (*specifications.Specification, error)
+	GetPlanning(id string) (*[][]string, error)
+	GetDefinition(id string) (*definitions.Definition, error)
+	GetResultDefinition(id string) (*results.ResultDefinition, error)
 
 	AddComponent(componentPointer *components.Component) error
 	AddSpecification(specificationPointer *specifications.Specification) error
-	AddTopologicalSort(planning [][]string, specificationId string) error
+	AddPlanning(planningPointer *[][]string, specificationId string) error
 	AddDefinition(definitionPointer *definitions.Definition) error
 	AddResultDefinition(resultDefinitionPointer *results.ResultDefinition) error
 
 	UpdateResultJob(resultJobPointer *results.ResultJob, resultDefinitionId string) error
-	GetDefinitionsWithWaitings() ([]definitions.Definition, error)
+	GetDefinitionsWithWaitings() (*[]definitions.Definition, error)
 }
 
 func NewDatabase(repo string) (*Database, error) {
 	var database Database
+	var err error
 
 	switch repo {
 	case "mock":
@@ -36,5 +37,5 @@ func NewDatabase(repo string) (*Database, error) {
 		return nil, fmt.Errorf("invalid repo: %v", repo)
 	}
 
-	return &database, nil
+	return &database, err
 }

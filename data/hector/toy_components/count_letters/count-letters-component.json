@@ -14,8 +14,6 @@
             "type": "string"
         }
     ],
-    "container": {
-        "dockerfile": "repo/data/hector/toy_components/count_letters/Dockerfile",
-        "image": "adriansegura99/dag_kubernetes_count-letters:latest"
-    }
+    "containerDockerfile": "repo/data/hector/toy_components/count_letters/Dockerfile",
+    "containerImage": "adriansegura99/dag_kubernetes_count-letters:latest"
 }

@@ -20,8 +20,11 @@ def concat_files(
     message_2 = f.read()
     f.close()
 
+    concat = message_1 + " " + message_2
+    print(concat)
+
     f = open(output_file, "a")
-    f.write(message_1 + " " + message_2)
+    f.write(concat)
     f.close()
 
 if __name__ == "__main__":

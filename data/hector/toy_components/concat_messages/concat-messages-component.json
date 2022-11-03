@@ -18,8 +18,6 @@
             "type": "string"
         }
     ],
-    "container": {
-        "dockerfile": "repo/data/hector/toy_components/concat_messages/Dockerfile",
-        "image": "adriansegura99/dag_kubernetes_concat-messages:latest"
-    }
+    "containerDockerfile": "repo/data/hector/toy_components/concat_messages/Dockerfile",
+    "containerImage": "adriansegura99/dag_kubernetes_concat-messages:latest"
 }

@@ -14,10 +14,12 @@ def count_letters(
     num_letters = message.count()
     f.close()
 
-    f = open(output_file, "a")
-    f.write("The number of letters is: " + num_letters)
-    f.close()
+    result = "The number of letters is: " + num_letters
+    print(result)
 
+    f = open(output_file, "a")
+    f.write(result)
+    f.close()
 
 if __name__ == "__main__":
     typer.run(count_letters)

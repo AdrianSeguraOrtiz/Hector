@@ -62,11 +62,11 @@ func (c *Controller) Invoke(definitionPointer *definitions.Definition) (*results
 	// and parameters exposed in the definition (must be compatible with the corresponding specification).
 	nestedJobs, err := getJobs(definitionPointer, c.Database, c.Validator)
 	if err != nil {
-		return nil, fmt.Errorf("Error while trying to get jobs", err.Error())
+		return nil, fmt.Errorf("error while trying to get jobs %s", err.Error())
 	}
 
 	// If the definition already has a result in the database we download it.
-	resultDefinition, err := (*c.Database).GetResultDefinition((*definitionPointer).Id)
+	resultDefinitionPointer, err := (*c.Database).GetResultDefinition((*definitionPointer).Id)
 
 	// Otherwise we create an empty one, set all its jobs to waiting and upload it to the database before starting the execution.
 	switch err.(type) {
@@ -76,7 +76,7 @@ func (c *Controller) Invoke(definitionPointer *definitions.Definition) (*results
 			log.Printf(err.Error() + " A new document is created.")
 
 			// Create empty result definition
-			resultDefinition = results.ResultDefinition{
+			resultDefinitionPointer = &results.ResultDefinition{
 				Id:              (*definitionPointer).Id,
 				Name:            (*definitionPointer).Name,
 				SpecificationId: (*definitionPointer).SpecificationId,
@@ -86,14 +86,14 @@ func (c *Controller) Invoke(definitionPointer *definitions.Definition) (*results
 			// We instantiate all its works in a waiting state
 			for _, jobGroup := range nestedJobs {
 				for _, job := range jobGroup {
-					resultDefinition.ResultJobs = append(resultDefinition.ResultJobs, results.ResultJob{Id: job.Id, Name: job.Name, Status: results.Waiting})
+					(*resultDefinitionPointer).ResultJobs = append((*resultDefinitionPointer).ResultJobs, results.ResultJob{Id: job.Id, Name: job.Name, Status: results.Waiting})
 				}
 			}
 
 			// We add the result definition to the database
-			err := (*c.Database).AddResultDefinition(&resultDefinition)
+			err := (*c.Database).AddResultDefinition(resultDefinitionPointer)
 			if err != nil {
-				return nil, fmt.Errorf("Error during insertion into the database", err.Error())
+				return nil, fmt.Errorf("error during insertion into the database %s", err.Error())
 			}
 		}
 	default:
@@ -104,13 +104,13 @@ func (c *Controller) Invoke(definitionPointer *definitions.Definition) (*results
 	}
 
 	// Execute jobs
-	resultDefinition.ResultJobs, err = executeJobs(&nestedJobs, c.Executor, &resultDefinition, c.Database)
+	(*resultDefinitionPointer).ResultJobs, err = executeJobs(&nestedJobs, c.Executor, resultDefinitionPointer, c.Database)
 	if err != nil {
-		return nil, fmt.Errorf("Error during execution", err.Error())
+		return nil, fmt.Errorf("error during execution %s", err.Error())
 	}
 
 	// We return the pointer to the constructed result definition
-	return &resultDefinition, nil
+	return resultDefinitionPointer, nil
 }
 
 func getJobs(definitionPointer *definitions.Definition, databasePointer *databases.Database, validatorPointer *validators.Validator) ([][]jobs.Job, error) {
@@ -121,17 +121,17 @@ func getJobs(definitionPointer *definitions.Definition, databasePointer *databas
 	*/
 
 	// We extract the associated specification and its topological order
-	specification, err := (*databasePointer).GetSpecification((*definitionPointer).SpecificationId)
+	specificationPointer, err := (*databasePointer).GetSpecification((*definitionPointer).SpecificationId)
 	if err != nil {
 		return nil, err
 	}
-	planning, err := (*databasePointer).GetTopologicalSort((*definitionPointer).SpecificationId)
+	planningPointer, err := (*databasePointer).GetPlanning((*definitionPointer).SpecificationId)
 	if err != nil {
 		return nil, err
 	}
 
 	// We validate that the tasks required in the specification are specified in the definition file
-	taskValidatorErr := (*validatorPointer).ValidateDefinitionTaskNames(&(*definitionPointer).Data.Tasks, &specification.Spec.Dag.Tasks)
+	taskValidatorErr := (*validatorPointer).ValidateDefinitionTaskNames(&(*definitionPointer).Data.Tasks, &(*specificationPointer).Spec.Dag.Tasks)
 	if taskValidatorErr != nil {
 		return nil, taskValidatorErr
 	}
@@ -140,7 +140,7 @@ func getJobs(definitionPointer *definitions.Definition, databasePointer *databas
 	var nestedJobs [][]jobs.Job
 
 	// For each group of tasks ...
-	for _, taskGroup := range planning {
+	for _, taskGroup := range *planningPointer {
 
 		// One-dimensional vector for storing group tasks
 		var jobsGroup []jobs.Job
@@ -153,22 +153,22 @@ func getJobs(definitionPointer *definitions.Definition, databasePointer *databas
 			definitionTask := (*definitionPointer).Data.Tasks[idxDefinitionTask]
 
 			// B. We extract the task information from the specification struct (mainly to know the identifier of its component)
-			idxSpecificationTask := slices.IndexFunc(specification.Spec.Dag.Tasks, func(t specifications.SpecificationTask) bool { return t.Name == taskName })
-			specificationTask := specification.Spec.Dag.Tasks[idxSpecificationTask]
+			idxSpecificationTask := slices.IndexFunc((*specificationPointer).Spec.Dag.Tasks, func(t specifications.SpecificationTask) bool { return t.Name == taskName })
+			specificationTask := (*specificationPointer).Spec.Dag.Tasks[idxSpecificationTask]
 			componentId := specificationTask.Component
 
 			// C. We extract the information about the task component
-			execComponent, err := (*databasePointer).GetComponent(componentId)
+			execComponentPointer, err := (*databasePointer).GetComponent(componentId)
 			if err != nil {
 				return nil, err
 			}
 
 			// D. We check that the parameters entered (inputs/outputs) in the definition file are correct
-			inputValidatorErr := (*validatorPointer).ValidateDefinitionParameters(&definitionTask.Inputs, &execComponent.Inputs)
+			inputValidatorErr := (*validatorPointer).ValidateDefinitionParameters(&definitionTask.Inputs, &(*execComponentPointer).Inputs)
 			if inputValidatorErr != nil {
 				return nil, inputValidatorErr
 			}
-			outputValidatorErr := (*validatorPointer).ValidateDefinitionParameters(&definitionTask.Outputs, &execComponent.Outputs)
+			outputValidatorErr := (*validatorPointer).ValidateDefinitionParameters(&definitionTask.Outputs, &(*execComponentPointer).Outputs)
 			if outputValidatorErr != nil {
 				return nil, outputValidatorErr
 			}
@@ -177,7 +177,7 @@ func getJobs(definitionPointer *definitions.Definition, databasePointer *databas
 			job := jobs.Job{
 				Id:           xid.New().String(),
 				Name:         taskName,
-				Image:        execComponent.Container.Image,
+				Image:        (*execComponentPointer).ContainerImage,
 				Arguments:    append(definitionTask.Inputs, definitionTask.Outputs...),
 				Dependencies: specificationTask.Dependencies,
 			}
@@ -261,18 +261,18 @@ func executeJobs(nestedJobsPointer *[][]jobs.Job, executorPointer *executors.Exe
 				j := job
 				errg.Go(func() error {
 					// Execute job
-					jobRes, err := (*executorPointer).ExecuteJob(&j)
+					jobResPointer, err := (*executorPointer).ExecuteJob(&j)
 					if err != nil {
 						return err
 					}
 
 					// Save result in local storage (with control access)
 					mutex.Lock()
-					jobResults[j.Name] = jobRes
+					jobResults[j.Name] = *jobResPointer
 					mutex.Unlock()
 
 					// Save result in remote storage
-					updateErr := (*databasePointer).UpdateResultJob(&jobRes, (*resultDefinitionPointer).Id)
+					updateErr := (*databasePointer).UpdateResultJob(jobResPointer, (*resultDefinitionPointer).Id)
 					if updateErr != nil {
 						return updateErr
 					}

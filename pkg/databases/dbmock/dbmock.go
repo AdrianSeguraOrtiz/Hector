@@ -13,82 +13,82 @@ import (
 
 // We create a struct type to store the information that should be contained in the supposed database
 type DBMock struct {
-	ComponentStructs                []components.Component
-	SpecificationStructs            []specifications.Specification
-	TopologicalSortOfSpecifications map[string][][]string
-	DefinitionStructs               []definitions.Definition
-	ResultDefinitionStructs         []results.ResultDefinition
+	ComponentStructs         []components.Component
+	SpecificationStructs     []specifications.Specification
+	PlanningOfSpecifications map[string][][]string
+	DefinitionStructs        []definitions.Definition
+	ResultDefinitionStructs  []results.ResultDefinition
 }
 
 // We create a specific constructor for our problem
 func NewDBMock() *DBMock {
 	db := DBMock{}
-	db.TopologicalSortOfSpecifications = make(map[string][][]string)
+	db.PlanningOfSpecifications = make(map[string][][]string)
 	return &db
 }
 
-func (dbm *DBMock) GetComponent(id string) (components.Component, error) {
+func (dbm *DBMock) GetComponent(id string) (*components.Component, error) {
 	/*
 	   Performs a query to extract a component given its identifier
 	*/
 
 	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == id })
 	if idx == -1 {
-		return components.Component{}, &errors.ElementNotFoundErr{Type: "Component", Id: id}
+		return nil, &errors.ElementNotFoundErr{Type: "components.Component", Id: id}
 	}
 	component := dbm.ComponentStructs[idx]
-	return component, nil
+	return &component, nil
 }
 
-func (dbm *DBMock) GetSpecification(id string) (specifications.Specification, error) {
+func (dbm *DBMock) GetSpecification(id string) (*specifications.Specification, error) {
 	/*
 	   Performs a query to extract a specification given its identifier
 	*/
 
 	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == id })
 	if idx == -1 {
-		return specifications.Specification{}, &errors.ElementNotFoundErr{Type: "Specification", Id: id}
+		return nil, &errors.ElementNotFoundErr{Type: "specifications.Specification", Id: id}
 	}
 	specification := dbm.SpecificationStructs[idx]
-	return specification, nil
+	return &specification, nil
 }
 
-func (dbm *DBMock) GetTopologicalSort(id string) ([][]string, error) {
+func (dbm *DBMock) GetPlanning(id string) (*[][]string, error) {
 	/*
-	   Performs a query to extract the topological order of a specification given its identifier
+	   Performs a query to extract the planning of a specification given its identifier
 	*/
 
-	planning := dbm.TopologicalSortOfSpecifications[id]
+	planning := dbm.PlanningOfSpecifications[id]
 	if len(planning) == 0 {
-		return nil, &errors.ElementNotFoundErr{Type: "Topological Sort", Id: id}
+		return nil, &errors.ElementNotFoundErr{Type: "Planning", Id: id}
 	}
-	return planning, nil
+	return &planning, nil
 }
 
-func (dbm *DBMock) GetDefinition(id string) (definitions.Definition, error) {
+func (dbm *DBMock) GetDefinition(id string) (*definitions.Definition, error) {
 	/*
 	   Performs a query to extract a definition given its identifier
 	*/
 
 	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == id })
 	if idx == -1 {
-		return definitions.Definition{}, &errors.ElementNotFoundErr{Type: "Definition", Id: id}
+		return nil, &errors.ElementNotFoundErr{Type: "definitions.Definition", Id: id}
 	}
 	definition := dbm.DefinitionStructs[idx]
-	return definition, nil
+	return &definition, nil
 }
 
-func (dbm *DBMock) GetResultDefinition(id string) (results.ResultDefinition, error) {
+func (dbm *DBMock) GetResultDefinition(id string) (*results.ResultDefinition, error) {
 	/*
 	   Performs a query to extract a result definition given its identifier
 	*/
 
 	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == id })
 	if idx == -1 {
-		return results.ResultDefinition{}, &errors.ElementNotFoundErr{Type: "Result Definition", Id: id}
+		return nil, &errors.ElementNotFoundErr{Type: "results.ResultDefinition", Id: id}
 	}
 	resultDefinition := dbm.ResultDefinitionStructs[idx]
-	return resultDefinition, nil
+	return &resultDefinition, nil
 }
 
 func (dbm *DBMock) AddComponent(componentPointer *components.Component) error {
@@ -98,7 +98,7 @@ func (dbm *DBMock) AddComponent(componentPointer *components.Component) error {
 
 	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == (*componentPointer).Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "Component", Id: (*componentPointer).Id}
+		return &errors.DuplicateIDErr{Type: "components.Component", Id: (*componentPointer).Id}
 	}
 	dbm.ComponentStructs = append(dbm.ComponentStructs, *componentPointer)
 	return nil
@@ -111,21 +111,21 @@ func (dbm *DBMock) AddSpecification(specificationPointer *specifications.Specifi
 
 	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == (*specificationPointer).Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "Specification", Id: (*specificationPointer).Id}
+		return &errors.DuplicateIDErr{Type: "specifications.Specification", Id: (*specificationPointer).Id}
 	}
 	dbm.SpecificationStructs = append(dbm.SpecificationStructs, *specificationPointer)
 	return nil
 }
 
-func (dbm *DBMock) AddTopologicalSort(planning [][]string, specificationId string) error {
+func (dbm *DBMock) AddPlanning(planningPointer *[][]string, specificationId string) error {
 	/*
-	   Insert topological sort in database
+	   Insert planning in database
 	*/
 
-	if _, exists := dbm.TopologicalSortOfSpecifications[specificationId]; exists {
-		return &errors.DuplicateIDErr{Type: "Topological Sort", Id: specificationId}
+	if _, exists := dbm.PlanningOfSpecifications[specificationId]; exists {
+		return &errors.DuplicateIDErr{Type: "Planning", Id: specificationId}
 	}
-	dbm.TopologicalSortOfSpecifications[specificationId] = planning
+	dbm.PlanningOfSpecifications[specificationId] = *planningPointer
 	return nil
 }
 
@@ -136,7 +136,7 @@ func (dbm *DBMock) AddDefinition(definitionPointer *definitions.Definition) erro
 
 	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == (*definitionPointer).Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "Definition", Id: (*definitionPointer).Id}
+		return &errors.DuplicateIDErr{Type: "definitions.Definition", Id: (*definitionPointer).Id}
 	}
 	dbm.DefinitionStructs = append(dbm.DefinitionStructs, *definitionPointer)
 	return nil
@@ -149,7 +149,7 @@ func (dbm *DBMock) AddResultDefinition(resultDefinitionPointer *results.ResultDe
 
 	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == (*resultDefinitionPointer).Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "Result Definition", Id: (*resultDefinitionPointer).Id}
+		return &errors.DuplicateIDErr{Type: "results.ResultDefinition", Id: (*resultDefinitionPointer).Id}
 	}
 	dbm.ResultDefinitionStructs = append(dbm.ResultDefinitionStructs, *resultDefinitionPointer)
 	return nil
@@ -162,7 +162,7 @@ func (dbm *DBMock) UpdateResultJob(resultJobPointer *results.ResultJob, resultDe
 
 	idxResultDefinition := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == resultDefinitionId })
 	if idxResultDefinition == -1 {
-		return &errors.ElementNotFoundErr{Type: "Result Definition", Id: resultDefinitionId}
+		return &errors.ElementNotFoundErr{Type: "results.ResultDefinition", Id: resultDefinitionId}
 	}
 	resultDefinition := dbm.ResultDefinitionStructs[idxResultDefinition]
 	idxResultJob := slices.IndexFunc(resultDefinition.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Id == (*resultJobPointer).Id })
@@ -176,19 +176,23 @@ func (dbm *DBMock) UpdateResultJob(resultJobPointer *results.ResultJob, resultDe
 	return nil
 }
 
-func (dbm *DBMock) GetDefinitionsWithWaitings() ([]definitions.Definition, error) {
+func (dbm *DBMock) GetDefinitionsWithWaitings() (*[]definitions.Definition, error) {
+	/*
+		Returns those definitions where some of their tasks are pending execution.
+	*/
+
 	var res []definitions.Definition
 
-	for _, ResDef := range dbm.ResultDefinitionStructs {
-		idxSomeWaiting := slices.IndexFunc(ResDef.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Status == results.Waiting })
+	for _, resDef := range dbm.ResultDefinitionStructs {
+		idxSomeWaiting := slices.IndexFunc(resDef.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Status == results.Waiting })
 		if idxSomeWaiting != -1 {
-			def, err := dbm.GetDefinition(ResDef.Id)
+			defPointer, err := dbm.GetDefinition(resDef.Id)
 			if err != nil {
-				return nil, fmt.Errorf("Error during definition extraction", err.Error())
+				return nil, fmt.Errorf("error during definition extraction %s", err.Error())
 			}
-			res = append(res, def)
+			res = append(res, *defPointer)
 		}
 	}
 
-	return res, nil
+	return &res, nil
 }

@@ -9,7 +9,7 @@ import (
 )
 
 type Executor interface {
-	ExecuteJob(jobPointer *jobs.Job) (results.ResultJob, error)
+	ExecuteJob(jobPointer *jobs.Job) (*results.ResultJob, error)
 }
 
 func NewExecutor(tool string) (*Executor, error) {

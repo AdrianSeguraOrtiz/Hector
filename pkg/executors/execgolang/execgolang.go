@@ -54,7 +54,7 @@ func NewExecGolang() *ExecGolang {
 	return &ExecGolang{}
 }
 
-func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (results.ResultJob, error) {
+func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (*results.ResultJob, error) {
 	/*
 		This function executes a job locally.
 		Based on: https://docs.docker.com/engine/api/sdk/#sdk-and-api-quickstart and https://docs.docker.com/engine/api/sdk/examples/
@@ -72,22 +72,22 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (results.ResultJob, error
 	// Start docker client
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		return results.ResultJob{}, err
+		return nil, err
 	}
 
 	// Pull image in case it is not available in the system
 	available, err := checkIfAvailable(ctx, cli, (*jobPointer).Image)
 	if err != nil {
-		return results.ResultJob{}, err
+		return nil, err
 	}
 	if !available {
 		reader, err := cli.ImagePull(ctx, (*jobPointer).Image, types.ImagePullOptions{})
 		if err != nil {
-			return results.ResultJob{}, err
+			return &results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: err.Error(), Status: results.Error}, nil
 		}
 		pullLogs, err := readerToString(&reader)
 		if err != nil {
-			return results.ResultJob{}, err
+			return nil, err
 		}
 		logs += pullLogs + "\n"
 	}
@@ -99,13 +99,13 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (results.ResultJob, error
 		Cmd:   args,
 	}, nil, nil, nil, "")
 	if err != nil {
-		return results.ResultJob{}, err
+		return nil, err
 	}
 
 	// We run the container
 	ContStartErr := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
 	if ContStartErr != nil {
-		return results.ResultJob{}, ContStartErr
+		return nil, ContStartErr
 	}
 
 	// We wait for its definition to be completed.
@@ -113,7 +113,7 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (results.ResultJob, error
 	select {
 	case err := <-errCh:
 		if err != nil {
-			return results.ResultJob{}, err
+			return nil, err
 		}
 	case <-statusCh:
 	}
@@ -124,26 +124,26 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (results.ResultJob, error
 	// If the definition has reported contents in the error stream, the definition is considered failed.
 	errorReader, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStderr: true})
 	if err != nil {
-		return results.ResultJob{}, err
+		return nil, err
 	}
 	errorLogs, err := readerToString(&errorReader)
 	if err != nil {
-		return results.ResultJob{}, err
+		return nil, err
 	}
 	if errorLogs != "" {
 		logs += errorLogs
-		return results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: logs, Status: results.Error}, nil
+		return &results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: logs, Status: results.Error}, nil
 	}
 
 	// Otherwise, the contents of the output stream are retrieved and the definition is considered successful.
 	execReader, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStdout: true})
 	if err != nil {
-		return results.ResultJob{}, err
+		return nil, err
 	}
 	execLogs, err := readerToString(&execReader)
 	if err != nil {
-		return results.ResultJob{}, err
+		return nil, err
 	}
 	logs += execLogs
-	return results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: logs, Status: results.Done}, nil
+	return &results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: logs, Status: results.Done}, nil
 }

@@ -54,7 +54,7 @@ func (val *Validator) ValidateDefinitionTaskNames(definitionTaskArrayPointer *[]
 	for _, specificationTask := range *specificationTaskArrayPointer {
 		idxDefinitionTask := slices.IndexFunc(*definitionTaskArrayPointer, func(t definitions.DefinitionTask) bool { return t.Name == specificationTask.Name })
 		if idxDefinitionTask == -1 {
-			return fmt.Errorf("Task " + specificationTask.Name + " is required in the selected specification but is not present in the definition file.")
+			return fmt.Errorf("task %s is required in the selected specification but is not present in the definition file", specificationTask.Name)
 		}
 	}
 	return nil
@@ -65,11 +65,11 @@ func (val *Validator) ValidateDefinitionParameters(definitionParameterArrayPoint
 	for _, componentPut := range *specificationPutArrayPointer {
 		idxDefinitionParameter := slices.IndexFunc(*definitionParameterArrayPointer, func(p definitions.Parameter) bool { return p.Name == componentPut.Name })
 		if idxDefinitionParameter == -1 {
-			return fmt.Errorf("Parameter " + componentPut.Name + " is required but is not present in the definition file.")
+			return fmt.Errorf("parameter %s is required but is not present in the definition file", componentPut.Name)
 		}
 		definitionParameter := (*definitionParameterArrayPointer)[idxDefinitionParameter]
 		if reflect.TypeOf(definitionParameter.Value).String() != componentPut.Type {
-			return fmt.Errorf("Parameter " + componentPut.Name + " has an invalid value in the definition file.")
+			return fmt.Errorf("parameter %s has an invalid value in the definition file", componentPut.Name)
 		}
 	}
 	return nil

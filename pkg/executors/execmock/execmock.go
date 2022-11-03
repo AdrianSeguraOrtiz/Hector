@@ -14,7 +14,7 @@ func NewExecMock() *ExecMock {
 	return &ExecMock{}
 }
 
-func (em *ExecMock) ExecuteJob(jobPointer *jobs.Job) (results.ResultJob, error) {
+func (em *ExecMock) ExecuteJob(jobPointer *jobs.Job) (*results.ResultJob, error) {
 	/*
 		This function simulates the definition of a job.
 	*/
@@ -30,8 +30,8 @@ func (em *ExecMock) ExecuteJob(jobPointer *jobs.Job) (results.ResultJob, error) 
 
 	// We return the result of the definition, occasionally simulating the production of an error during it.
 	if rand.Float64() < 0.5 {
-		return results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: "File not found exception", Status: results.Error}, nil
+		return &results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: "File not found exception", Status: results.Error}, nil
 	} else {
-		return results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: "All right", Status: results.Done}, nil
+		return &results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: "All right", Status: results.Done}, nil
 	}
 }

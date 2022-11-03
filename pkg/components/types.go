@@ -9,7 +9,7 @@ import (
 
 func RepresentsType(fl validator.FieldLevel) bool {
 	value := fl.Field().Interface().(string)
-	types := []string{"string", "integer", "float", "bool"}
+	types := []string{"string", "int", "float", "bool"}
 	return pkg.Contains(types, value)
 }
 
@@ -18,19 +18,15 @@ type Put struct {
 	Type string `json:"type" validate:"required,representsType"`
 }
 
-type Container struct {
-	Dockerfile string   `json:"dockerfile" validate:"required"`
-	Image      string   `json:"image" validate:"required"`
-	Command    []string `json:"command"`
-}
-
 type Component struct {
-	Id         string    `json:"id" validate:"required"`
-	Name       string    `json:"name" validate:"required"`
-	ApiVersion string    `json:"apiVersion" validate:"required"`
-	Inputs     []Put     `json:"inputs" validate:"dive"`
-	Outputs    []Put     `json:"outputs" validate:"dive"`
-	Container  Container `json:"container" validate:"required"`
+	Id                  string   `json:"id" validate:"required"`
+	Name                string   `json:"name" validate:"required"`
+	ApiVersion          string   `json:"apiVersion" validate:"required"`
+	Inputs              []Put    `json:"inputs" validate:"dive"`
+	Outputs             []Put    `json:"outputs" validate:"dive"`
+	ContainerDockerfile string   `json:"containerDockerfile" validate:"required"`
+	ContainerImage      string   `json:"containerImage" validate:"required"`
+	ContainerCommand    []string `json:"containerCommand"`
 }
 
 func (comp *Component) String() string {

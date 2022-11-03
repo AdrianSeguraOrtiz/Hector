@@ -28,7 +28,7 @@ type Element interface {
 }
 
 // Get Element function
-func getElement[V Element](f func(string) (V, error), w http.ResponseWriter, r *http.Request) {
+func getElement[V Element](f func(string) (*V, error), w http.ResponseWriter, r *http.Request) {
 	/**
 	This function is in charge of avoiding code repetition, it receives a get
 	function from the database and returns the requested information based on it.
@@ -39,16 +39,16 @@ func getElement[V Element](f func(string) (V, error), w http.ResponseWriter, r *
 	id := vars["ID"]
 
 	// We launch a query to the database
-	databaseElement, err := f(id)
+	databaseElementPointer, err := f(id)
 	if err != nil {
-		log.Printf("Invalid id:", err.Error())
+		log.Printf("Invalid id: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// We write the output in the response writer
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(databaseElement)
+	json.NewEncoder(w).Encode(*databaseElementPointer)
 }
 
 // Read and Validate Element function
@@ -62,16 +62,16 @@ func readAndValidateElement[V Element](f func(*V) error, w http.ResponseWriter, 
 	var element V
 	content, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return element, fmt.Errorf("Invalid request:", err.Error())
+		return element, fmt.Errorf("invalid request: %s", err.Error())
 	}
 	if err := json.Unmarshal(content, &element); err != nil {
-		return element, fmt.Errorf("Invalid request:", err.Error())
+		return element, fmt.Errorf("invalid request: %s", err.Error())
 	}
 
 	// Validate element scheme
 	schemeErr := f(&element)
 	if schemeErr != nil {
-		return element, fmt.Errorf("Invalid scheme:", schemeErr.Error())
+		return element, fmt.Errorf("invalid scheme: %s", schemeErr.Error())
 	}
 	return element, nil
 }
@@ -105,7 +105,7 @@ func (a *Api) submitComponent(w http.ResponseWriter, r *http.Request) {
 	// Read component from body and validate scheme
 	component, err := readAndValidateElement(a.Controller.Validator.ValidateComponentStruct, w, r)
 	if err != nil {
-		log.Printf(err.Error())
+		log.Print(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -113,7 +113,7 @@ func (a *Api) submitComponent(w http.ResponseWriter, r *http.Request) {
 	// Add component to database
 	databaseErr := (*a.Controller.Database).AddComponent(&component)
 	if databaseErr != nil {
-		log.Printf("Error during insertion into the database", databaseErr.Error())
+		log.Printf("error during insertion into the database %s", databaseErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -128,7 +128,7 @@ func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
 	// Read specification from body and validate scheme
 	specification, err := readAndValidateElement(a.Controller.Validator.ValidateSpecificationStruct, w, r)
 	if err != nil {
-		log.Printf(err.Error())
+		log.Print(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -138,15 +138,15 @@ func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
 	// Calculate topological sort
 	planning, err := (*a.Controller.Scheduler).Plan(&specification)
 	if err != nil {
-		log.Printf("Error during planning calculation", err.Error())
+		log.Printf("error during planning calculation %s", err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	// Add topological sort to database
-	databasePlanningErr := (*a.Controller.Database).AddTopologicalSort(planning, specification.Id)
+	databasePlanningErr := (*a.Controller.Database).AddPlanning(&planning, specification.Id)
 	if databasePlanningErr != nil {
-		log.Printf("Error during insertion into the database", databasePlanningErr.Error())
+		log.Printf("error during insertion into the database %s", databasePlanningErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -154,7 +154,7 @@ func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
 	// Add specification to database
 	databaseSpecErr := (*a.Controller.Database).AddSpecification(&specification)
 	if databaseSpecErr != nil {
-		log.Printf("Error during insertion into the database", databaseSpecErr.Error())
+		log.Printf("error during insertion into the database %s", databaseSpecErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -169,7 +169,7 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 	// Read definition from body and validate scheme
 	definition, err := readAndValidateElement(a.Controller.Validator.ValidateDefinitionStruct, w, r)
 	if err != nil {
-		log.Printf(err.Error())
+		log.Print(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -180,14 +180,14 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 	// Add definition to database
 	addDefErr := (*a.Controller.Database).AddDefinition(&definition)
 	if addDefErr != nil {
-		log.Printf("Error while trying to insert the definition in the database", addDefErr.Error())
+		log.Printf("error while trying to insert the definition in the database %s", addDefErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	_, invErr := a.Controller.Invoke(&definition)
-	if err != nil {
-		log.Printf("Error during invocation of the definition", invErr.Error())
+	if invErr != nil {
+		log.Printf("error during invocation of the definition %s", invErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -207,7 +207,7 @@ func (a *Api) getSpecification(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Api) getTopologicalSort(w http.ResponseWriter, r *http.Request) {
-	getElement((*a.Controller.Database).GetTopologicalSort, w, r)
+	getElement((*a.Controller.Database).GetPlanning, w, r)
 }
 
 func (a *Api) getDefinition(w http.ResponseWriter, r *http.Request) {

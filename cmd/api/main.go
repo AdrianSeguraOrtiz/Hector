@@ -24,11 +24,11 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", (*apiPointer).Router))
 
 	// Set pending definitions to execute
-	pendingDefinitions, err := (*controller.Database).GetDefinitionsWithWaitings()
+	pendingDefinitionsPointer, err := (*controller.Database).GetDefinitionsWithWaitings()
 	if err != nil {
 		panic(err)
 	}
-	for _, def := range pendingDefinitions {
+	for _, def := range *pendingDefinitionsPointer {
 		controller.Invoke(&def)
 	}
 

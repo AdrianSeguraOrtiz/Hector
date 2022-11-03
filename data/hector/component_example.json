@@ -9,7 +9,7 @@
         },
         {
             "name": "input_2",
-            "type": "integer"
+            "type": "int"
         }
     ],
     "outputs": [
@@ -18,9 +18,7 @@
             "type": "string"
         }
     ],
-    "container": {
-        "dockerfile": "components/component_file.dockerfile",
-        "image": "image/name",
-        "command": ["docker", "run", "..."]
-    }
+    "containerDockerfile": "components/component_file.dockerfile",
+    "containerImage": "image/name",
+    "containerCommand": ["docker", "run", "..."]
 }
