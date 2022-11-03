@@ -3,6 +3,7 @@ package databases
 import (
 	"dag/hector/golang/module/pkg/components"
 	"dag/hector/golang/module/pkg/databases/dbmock"
+	"dag/hector/golang/module/pkg/databases/sqlite3"
 	"dag/hector/golang/module/pkg/definitions"
 	"dag/hector/golang/module/pkg/results"
 	"dag/hector/golang/module/pkg/specifications"
@@ -33,6 +34,8 @@ func NewDatabase(repo string) (*Database, error) {
 	switch repo {
 	case "mock":
 		database = dbmock.NewDBMock()
+	case "sqlite3":
+		database, err = sqlite3.NewSQLite3()
 	default:
 		return nil, fmt.Errorf("invalid repo: %v", repo)
 	}
