@@ -9,7 +9,7 @@ import (
 
 func main() {
 	// Create controller
-	controller, err := controllers.NewController("mock", "topological_grouped", "mock")
+	controller, err := controllers.NewController("nomad", "topological_grouped", "mock")
 	if err != nil {
 		panic(err)
 	}

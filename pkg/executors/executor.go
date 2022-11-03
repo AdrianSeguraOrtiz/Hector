@@ -3,6 +3,7 @@ package executors
 import (
 	"dag/hector/golang/module/pkg/executors/execgolang"
 	"dag/hector/golang/module/pkg/executors/execmock"
+	"dag/hector/golang/module/pkg/executors/nomad"
 	"dag/hector/golang/module/pkg/jobs"
 	"dag/hector/golang/module/pkg/results"
 	"fmt"
@@ -20,6 +21,8 @@ func NewExecutor(tool string) (*Executor, error) {
 		executor = execmock.NewExecMock()
 	case "golang":
 		executor = execgolang.NewExecGolang()
+	case "nomad":
+		executor = nomad.NewNomad()
 	default:
 		return nil, fmt.Errorf("invalid tool: %v", tool)
 	}
