@@ -91,33 +91,33 @@ func (dbm *DBMock) GetResultDefinition(id string) (*results.ResultDefinition, er
 	return &resultDefinition, nil
 }
 
-func (dbm *DBMock) AddComponent(componentPointer *components.Component) error {
+func (dbm *DBMock) AddComponent(component *components.Component) error {
 	/*
 	   Insert component in database
 	*/
 
-	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == (*componentPointer).Id })
+	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == (*component).Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "components.Component", Id: (*componentPointer).Id}
+		return &errors.DuplicateIDErr{Type: "components.Component", Id: (*component).Id}
 	}
-	dbm.ComponentStructs = append(dbm.ComponentStructs, *componentPointer)
+	dbm.ComponentStructs = append(dbm.ComponentStructs, *component)
 	return nil
 }
 
-func (dbm *DBMock) AddSpecification(specificationPointer *specifications.Specification) error {
+func (dbm *DBMock) AddSpecification(specification *specifications.Specification) error {
 	/*
 	   Insert specification in database
 	*/
 
-	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == (*specificationPointer).Id })
+	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == (*specification).Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "specifications.Specification", Id: (*specificationPointer).Id}
+		return &errors.DuplicateIDErr{Type: "specifications.Specification", Id: (*specification).Id}
 	}
-	dbm.SpecificationStructs = append(dbm.SpecificationStructs, *specificationPointer)
+	dbm.SpecificationStructs = append(dbm.SpecificationStructs, *specification)
 	return nil
 }
 
-func (dbm *DBMock) AddPlanning(planningPointer *[][]string, specificationId string) error {
+func (dbm *DBMock) AddPlanning(planning *[][]string, specificationId string) error {
 	/*
 	   Insert planning in database
 	*/
@@ -125,37 +125,37 @@ func (dbm *DBMock) AddPlanning(planningPointer *[][]string, specificationId stri
 	if _, exists := dbm.PlanningOfSpecifications[specificationId]; exists {
 		return &errors.DuplicateIDErr{Type: "Planning", Id: specificationId}
 	}
-	dbm.PlanningOfSpecifications[specificationId] = *planningPointer
+	dbm.PlanningOfSpecifications[specificationId] = *planning
 	return nil
 }
 
-func (dbm *DBMock) AddDefinition(definitionPointer *definitions.Definition) error {
+func (dbm *DBMock) AddDefinition(definition *definitions.Definition) error {
 	/*
 	   Insert definition in database
 	*/
 
-	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == (*definitionPointer).Id })
+	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == (*definition).Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "definitions.Definition", Id: (*definitionPointer).Id}
+		return &errors.DuplicateIDErr{Type: "definitions.Definition", Id: (*definition).Id}
 	}
-	dbm.DefinitionStructs = append(dbm.DefinitionStructs, *definitionPointer)
+	dbm.DefinitionStructs = append(dbm.DefinitionStructs, *definition)
 	return nil
 }
 
-func (dbm *DBMock) AddResultDefinition(resultDefinitionPointer *results.ResultDefinition) error {
+func (dbm *DBMock) AddResultDefinition(resultDefinition *results.ResultDefinition) error {
 	/*
 	   Insert result definition in database
 	*/
 
-	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == (*resultDefinitionPointer).Id })
+	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == (*resultDefinition).Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "results.ResultDefinition", Id: (*resultDefinitionPointer).Id}
+		return &errors.DuplicateIDErr{Type: "results.ResultDefinition", Id: (*resultDefinition).Id}
 	}
-	dbm.ResultDefinitionStructs = append(dbm.ResultDefinitionStructs, *resultDefinitionPointer)
+	dbm.ResultDefinitionStructs = append(dbm.ResultDefinitionStructs, *resultDefinition)
 	return nil
 }
 
-func (dbm *DBMock) UpdateResultJob(resultJobPointer *results.ResultJob, resultDefinitionId string) error {
+func (dbm *DBMock) UpdateResultJob(resultJob *results.ResultJob, resultDefinitionId string) error {
 	/*
 		Update Result Job into Result Definition in database
 	*/
@@ -165,11 +165,11 @@ func (dbm *DBMock) UpdateResultJob(resultJobPointer *results.ResultJob, resultDe
 		return &errors.ElementNotFoundErr{Type: "results.ResultDefinition", Id: resultDefinitionId}
 	}
 	resultDefinition := dbm.ResultDefinitionStructs[idxResultDefinition]
-	idxResultJob := slices.IndexFunc(resultDefinition.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Id == (*resultJobPointer).Id })
+	idxResultJob := slices.IndexFunc(resultDefinition.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Id == (*resultJob).Id })
 	if idxResultJob == -1 {
-		resultDefinition.ResultJobs = append(resultDefinition.ResultJobs, *resultJobPointer)
+		resultDefinition.ResultJobs = append(resultDefinition.ResultJobs, *resultJob)
 	} else {
-		resultDefinition.ResultJobs[idxResultJob] = *resultJobPointer
+		resultDefinition.ResultJobs[idxResultJob] = *resultJob
 	}
 	dbm.ResultDefinitionStructs[idxResultDefinition] = resultDefinition
 
@@ -186,11 +186,11 @@ func (dbm *DBMock) GetDefinitionsWithWaitings() (*[]definitions.Definition, erro
 	for _, resDef := range dbm.ResultDefinitionStructs {
 		idxSomeWaiting := slices.IndexFunc(resDef.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Status == results.Waiting })
 		if idxSomeWaiting != -1 {
-			defPointer, err := dbm.GetDefinition(resDef.Id)
+			def, err := dbm.GetDefinition(resDef.Id)
 			if err != nil {
 				return nil, fmt.Errorf("error during definition extraction %s", err.Error())
 			}
-			res = append(res, *defPointer)
+			res = append(res, *def)
 		}
 	}
 

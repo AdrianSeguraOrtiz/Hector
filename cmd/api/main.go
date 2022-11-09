@@ -31,20 +31,20 @@ func main() {
 	controller := &controllers.Controller{Executor: &executor, Scheduler: &scheduler, Database: &database, Validator: validator}
 
 	// Create API
-	apiPointer, err := api.NewApi(controller)
+	api, err := api.NewApi(controller)
 	if err != nil {
 		panic(err)
 	}
 
 	// Raise the API
-	log.Fatal(http.ListenAndServe(":8080", (*apiPointer).Router))
+	log.Fatal(http.ListenAndServe(":8080", (*api).Router))
 
 	// Set pending definitions to execute
-	pendingDefinitionsPointer, err := (*controller.Database).GetDefinitionsWithWaitings()
+	pendingDefinitions, err := (*controller.Database).GetDefinitionsWithWaitings()
 	if err != nil {
 		panic(err)
 	}
-	for _, def := range *pendingDefinitionsPointer {
+	for _, def := range *pendingDefinitions {
 		controller.Invoke(&def)
 	}
 

@@ -6,5 +6,5 @@ import (
 )
 
 type Executor interface {
-	ExecuteJob(jobPointer *jobs.Job) (*results.ResultJob, error)
+	ExecuteJob(job *jobs.Job) (*results.ResultJob, error)
 }

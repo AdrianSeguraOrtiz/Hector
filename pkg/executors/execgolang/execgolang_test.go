@@ -78,14 +78,14 @@ func TestExecuteJob(t *testing.T) {
 
 		testname := "test_" + strconv.Itoa(i)
 		t.Run(testname, func(t *testing.T) {
-			resJobPointer, err := nomad.ExecuteJob(tt.job)
+			resJob, err := nomad.ExecuteJob(tt.job)
 
 			if err != nil {
 				t.Error(err)
-			} else if (*resJobPointer).Status != tt.status {
-				t.Error("Invalid status, got ", (*resJobPointer).Status, ", want ", tt.status)
-			} else if !strings.Contains((*resJobPointer).Logs, tt.logs) {
-				t.Error("Invalid logs, got ", (*resJobPointer).Logs, ", want something like ", tt.logs)
+			} else if (*resJob).Status != tt.status {
+				t.Error("Invalid status, got ", (*resJob).Status, ", want ", tt.status)
+			} else if !strings.Contains((*resJob).Logs, tt.logs) {
+				t.Error("Invalid logs, got ", (*resJob).Logs, ", want something like ", tt.logs)
 			}
 		})
 	}
