@@ -82,10 +82,10 @@ func TestExecuteJob(t *testing.T) {
 
 			if err != nil {
 				t.Error(err)
-			} else if (*resJob).Status != tt.status {
-				t.Error("Invalid status, got ", (*resJob).Status, ", want ", tt.status)
-			} else if !strings.Contains((*resJob).Logs, tt.logs) {
-				t.Error("Invalid logs, got ", (*resJob).Logs, ", want something like ", tt.logs)
+			} else if resJob.Status != tt.status {
+				t.Error("Invalid status, got ", resJob.Status, ", want ", tt.status)
+			} else if !strings.Contains(resJob.Logs, tt.logs) {
+				t.Error("Invalid logs, got ", resJob.Logs, ", want something like ", tt.logs)
 			}
 		})
 	}

@@ -40,7 +40,7 @@ func (c *Controller) Invoke(definition *definitions.Definition) (*results.Result
 	}
 
 	// If the definition already has a result in the database we download it.
-	resultDefinition, err := (*c.Database).GetResultDefinition((*definition).Id)
+	resultDefinition, err := (*c.Database).GetResultDefinition(definition.Id)
 
 	// Otherwise we create an empty one, set all its jobs to waiting and upload it to the database before starting the execution.
 	switch err.(type) {
@@ -51,16 +51,16 @@ func (c *Controller) Invoke(definition *definitions.Definition) (*results.Result
 
 			// Create empty result definition
 			resultDefinition = &results.ResultDefinition{
-				Id:              (*definition).Id,
-				Name:            (*definition).Name,
-				SpecificationId: (*definition).SpecificationId,
+				Id:              definition.Id,
+				Name:            definition.Name,
+				SpecificationId: definition.SpecificationId,
 				ResultJobs:      []results.ResultJob{},
 			}
 
 			// We instantiate all its works in a waiting state
 			for _, jobGroup := range nestedJobs {
 				for _, job := range jobGroup {
-					(*resultDefinition).ResultJobs = append((*resultDefinition).ResultJobs, results.ResultJob{Id: job.Id, Name: job.Name, Status: results.Waiting})
+					resultDefinition.ResultJobs = append(resultDefinition.ResultJobs, results.ResultJob{Id: job.Id, Name: job.Name, Status: results.Waiting})
 				}
 			}
 
@@ -78,7 +78,7 @@ func (c *Controller) Invoke(definition *definitions.Definition) (*results.Result
 	}
 
 	// Execute jobs
-	(*resultDefinition).ResultJobs, err = executeJobs(&nestedJobs, c.Executor, resultDefinition, c.Database)
+	resultDefinition.ResultJobs, err = executeJobs(&nestedJobs, c.Executor, resultDefinition, c.Database)
 	if err != nil {
 		return nil, fmt.Errorf("error during execution %s", err.Error())
 	}
@@ -95,17 +95,17 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 	*/
 
 	// We extract the associated specification and its topological order
-	specification, err := (*database).GetSpecification((*definition).SpecificationId)
+	specification, err := (*database).GetSpecification(definition.SpecificationId)
 	if err != nil {
 		return nil, err
 	}
-	planning, err := (*database).GetPlanning((*definition).SpecificationId)
+	planning, err := (*database).GetPlanning(definition.SpecificationId)
 	if err != nil {
 		return nil, err
 	}
 
 	// We validate that the tasks required in the specification are specified in the definition file
-	taskValidatorErr := (*validator).ValidateDefinitionTaskNames(&(*definition).Data.Tasks, &(*specification).Spec.Dag.Tasks)
+	taskValidatorErr := validator.ValidateDefinitionTaskNames(&definition.Data.Tasks, &specification.Spec.Dag.Tasks)
 	if taskValidatorErr != nil {
 		return nil, taskValidatorErr
 	}
@@ -123,12 +123,12 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 		for _, taskName := range taskGroup {
 
 			// A. We extract the task information from the definition file
-			idxDefinitionTask := slices.IndexFunc((*definition).Data.Tasks, func(t definitions.DefinitionTask) bool { return t.Name == taskName })
-			definitionTask := (*definition).Data.Tasks[idxDefinitionTask]
+			idxDefinitionTask := slices.IndexFunc(definition.Data.Tasks, func(t definitions.DefinitionTask) bool { return t.Name == taskName })
+			definitionTask := definition.Data.Tasks[idxDefinitionTask]
 
 			// B. We extract the task information from the specification struct (mainly to know the identifier of its component)
-			idxSpecificationTask := slices.IndexFunc((*specification).Spec.Dag.Tasks, func(t specifications.SpecificationTask) bool { return t.Name == taskName })
-			specificationTask := (*specification).Spec.Dag.Tasks[idxSpecificationTask]
+			idxSpecificationTask := slices.IndexFunc(specification.Spec.Dag.Tasks, func(t specifications.SpecificationTask) bool { return t.Name == taskName })
+			specificationTask := specification.Spec.Dag.Tasks[idxSpecificationTask]
 			componentId := specificationTask.Component
 
 			// C. We extract the information about the task component
@@ -138,11 +138,11 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 			}
 
 			// D. We check that the parameters entered (inputs/outputs) in the definition file are correct
-			inputValidatorErr := (*validator).ValidateDefinitionParameters(&definitionTask.Inputs, &(*execComponent).Inputs)
+			inputValidatorErr := validator.ValidateDefinitionParameters(&definitionTask.Inputs, &execComponent.Inputs)
 			if inputValidatorErr != nil {
 				return nil, inputValidatorErr
 			}
-			outputValidatorErr := (*validator).ValidateDefinitionParameters(&definitionTask.Outputs, &(*execComponent).Outputs)
+			outputValidatorErr := validator.ValidateDefinitionParameters(&definitionTask.Outputs, &execComponent.Outputs)
 			if outputValidatorErr != nil {
 				return nil, outputValidatorErr
 			}
@@ -151,7 +151,7 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 			job := jobs.Job{
 				Id:           xid.New().String(),
 				Name:         taskName,
-				Image:        (*execComponent).ContainerImage,
+				Image:        execComponent.ContainerImage,
 				Arguments:    append(definitionTask.Inputs, definitionTask.Outputs...),
 				Dependencies: specificationTask.Dependencies,
 			}
@@ -180,7 +180,7 @@ func executeJobs(nestedJobs *[][]jobs.Job, executor *executors.Executor, resultD
 	mutex := &sync.RWMutex{}
 
 	// We fill the map with the input Result Definition (remote storage)
-	for _, jobRes := range (*resultDefinition).ResultJobs {
+	for _, jobRes := range resultDefinition.ResultJobs {
 		jobResults[jobRes.Name] = jobRes
 	}
 
@@ -215,7 +215,7 @@ func executeJobs(nestedJobs *[][]jobs.Job, executor *executors.Executor, resultD
 					jobResults[job.Name] = jobRes
 
 					// Save result job in remote storage
-					err := (*database).UpdateResultJob(&jobRes, (*resultDefinition).Id)
+					err := (*database).UpdateResultJob(&jobRes, resultDefinition.Id)
 					if err != nil {
 						return nil, err
 					}
@@ -246,7 +246,7 @@ func executeJobs(nestedJobs *[][]jobs.Job, executor *executors.Executor, resultD
 					mutex.Unlock()
 
 					// Save result in remote storage
-					updateErr := (*database).UpdateResultJob(jobRes, (*resultDefinition).Id)
+					updateErr := (*database).UpdateResultJob(jobRes, resultDefinition.Id)
 					if updateErr != nil {
 						return updateErr
 					}

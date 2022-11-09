@@ -23,7 +23,7 @@ func readerToString(rc *io.ReadCloser) (string, error) {
 }
 
 func checkIfAvailable(ctx context.Context, cli *client.Client, image string) (bool, error) {
-	images, err := (*cli).ImageList(ctx, types.ImageListOptions{})
+	images, err := cli.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -61,7 +61,7 @@ func (eg *ExecGolang) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	*/
 
 	// We print the initialization message and display the job information
-	fmt.Printf("Started "+(*job).Name+" job. Info: \n\t %+v\n\n", *job)
+	fmt.Printf("Started "+job.Name+" job. Info: \n\t %+v\n\n", *job)
 
 	// We create the variable logs to store all the information associated with the definition of the job
 	var logs string
@@ -76,14 +76,14 @@ func (eg *ExecGolang) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	}
 
 	// Pull image in case it is not available in the system
-	available, err := checkIfAvailable(ctx, cli, (*job).Image)
+	available, err := checkIfAvailable(ctx, cli, job.Image)
 	if err != nil {
 		return nil, err
 	}
 	if !available {
-		reader, err := cli.ImagePull(ctx, (*job).Image, types.ImagePullOptions{})
+		reader, err := cli.ImagePull(ctx, job.Image, types.ImagePullOptions{})
 		if err != nil {
-			return &results.ResultJob{Id: (*job).Id, Name: (*job).Name, Logs: err.Error(), Status: results.Error}, nil
+			return &results.ResultJob{Id: job.Id, Name: job.Name, Logs: err.Error(), Status: results.Error}, nil
 		}
 		pullLogs, err := readerToString(&reader)
 		if err != nil {
@@ -93,9 +93,9 @@ func (eg *ExecGolang) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	}
 
 	// We create the container by specifying the image and the job arguments
-	args := argumentsToSlice(&(*job).Arguments)
+	args := argumentsToSlice(&job.Arguments)
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: (*job).Image,
+		Image: job.Image,
 		Cmd:   args,
 	}, nil, nil, nil, "")
 	if err != nil {
@@ -119,7 +119,7 @@ func (eg *ExecGolang) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	}
 
 	// We print the finalization message
-	fmt.Println("Finished " + (*job).Name + " job\n")
+	fmt.Println("Finished " + job.Name + " job\n")
 
 	// If the definition has reported contents in the error stream, the definition is considered failed.
 	errorReader, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStderr: true})
@@ -132,7 +132,7 @@ func (eg *ExecGolang) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	}
 	if errorLogs != "" {
 		logs += errorLogs
-		return &results.ResultJob{Id: (*job).Id, Name: (*job).Name, Logs: logs, Status: results.Error}, nil
+		return &results.ResultJob{Id: job.Id, Name: job.Name, Logs: logs, Status: results.Error}, nil
 	}
 
 	// Otherwise, the contents of the output stream are retrieved and the definition is considered successful.
@@ -145,5 +145,5 @@ func (eg *ExecGolang) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 		return nil, err
 	}
 	logs += execLogs
-	return &results.ResultJob{Id: (*job).Id, Name: (*job).Name, Logs: logs, Status: results.Done}, nil
+	return &results.ResultJob{Id: job.Id, Name: job.Name, Logs: logs, Status: results.Done}, nil
 }

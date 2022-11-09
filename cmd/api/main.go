@@ -37,7 +37,7 @@ func main() {
 	}
 
 	// Raise the API
-	log.Fatal(http.ListenAndServe(":8080", (*api).Router))
+	log.Fatal(http.ListenAndServe(":8080", api.Router))
 
 	// Set pending definitions to execute
 	pendingDefinitions, err := (*controller.Database).GetDefinitionsWithWaitings()

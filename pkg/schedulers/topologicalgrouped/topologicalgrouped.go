@@ -22,7 +22,7 @@ func (tg *TopologicalGrouped) Plan(specification *specifications.Specification) 
 	*/
 
 	// The task array is extracted from the value of the input pointer.
-	tasks := (*specification).Spec.Dag.Tasks
+	tasks := specification.Spec.Dag.Tasks
 
 	// Declare a map containing for each task, the number of dependencies defined for it in the specification
 	indegreeMap := make(map[string]int)

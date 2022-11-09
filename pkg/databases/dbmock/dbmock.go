@@ -96,9 +96,9 @@ func (dbm *DBMock) AddComponent(component *components.Component) error {
 	   Insert component in database
 	*/
 
-	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == (*component).Id })
+	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == component.Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "components.Component", Id: (*component).Id}
+		return &errors.DuplicateIDErr{Type: "components.Component", Id: component.Id}
 	}
 	dbm.ComponentStructs = append(dbm.ComponentStructs, *component)
 	return nil
@@ -109,9 +109,9 @@ func (dbm *DBMock) AddSpecification(specification *specifications.Specification)
 	   Insert specification in database
 	*/
 
-	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == (*specification).Id })
+	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == specification.Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "specifications.Specification", Id: (*specification).Id}
+		return &errors.DuplicateIDErr{Type: "specifications.Specification", Id: specification.Id}
 	}
 	dbm.SpecificationStructs = append(dbm.SpecificationStructs, *specification)
 	return nil
@@ -134,9 +134,9 @@ func (dbm *DBMock) AddDefinition(definition *definitions.Definition) error {
 	   Insert definition in database
 	*/
 
-	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == (*definition).Id })
+	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == definition.Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "definitions.Definition", Id: (*definition).Id}
+		return &errors.DuplicateIDErr{Type: "definitions.Definition", Id: definition.Id}
 	}
 	dbm.DefinitionStructs = append(dbm.DefinitionStructs, *definition)
 	return nil
@@ -147,9 +147,9 @@ func (dbm *DBMock) AddResultDefinition(resultDefinition *results.ResultDefinitio
 	   Insert result definition in database
 	*/
 
-	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == (*resultDefinition).Id })
+	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == resultDefinition.Id })
 	if idx != -1 {
-		return &errors.DuplicateIDErr{Type: "results.ResultDefinition", Id: (*resultDefinition).Id}
+		return &errors.DuplicateIDErr{Type: "results.ResultDefinition", Id: resultDefinition.Id}
 	}
 	dbm.ResultDefinitionStructs = append(dbm.ResultDefinitionStructs, *resultDefinition)
 	return nil
@@ -165,7 +165,7 @@ func (dbm *DBMock) UpdateResultJob(resultJob *results.ResultJob, resultDefinitio
 		return &errors.ElementNotFoundErr{Type: "results.ResultDefinition", Id: resultDefinitionId}
 	}
 	resultDefinition := dbm.ResultDefinitionStructs[idxResultDefinition]
-	idxResultJob := slices.IndexFunc(resultDefinition.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Id == (*resultJob).Id })
+	idxResultJob := slices.IndexFunc(resultDefinition.ResultJobs, func(jobRes results.ResultJob) bool { return jobRes.Id == resultJob.Id })
 	if idxResultJob == -1 {
 		resultDefinition.ResultJobs = append(resultDefinition.ResultJobs, *resultJob)
 	} else {
