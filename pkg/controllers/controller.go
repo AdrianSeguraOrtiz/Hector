@@ -27,32 +27,6 @@ type Controller struct {
 	Validator *validators.Validator
 }
 
-func NewController(tool string, strategy string, repo string) (*Controller, error) {
-	// Create Executor
-	ex, err := executors.NewExecutor(tool)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create Scheduler
-	sc, err := schedulers.NewScheduler(strategy)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create Database
-	db, err := databases.NewDatabase(repo)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create Validator
-	val := validators.NewValidator()
-
-	// Return Controller pointer
-	return &Controller{Executor: ex, Scheduler: sc, Database: db, Validator: val}, nil
-}
-
 func (c *Controller) Invoke(definitionPointer *definitions.Definition) (*results.ResultDefinition, error) {
 	/**
 	This function is responsible for the complete execution of a given definition.
