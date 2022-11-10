@@ -72,7 +72,8 @@ func NewNomad() *Nomad {
 
 func (no *Nomad) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 
-	// We print the initialization message and display the job information
+	// TODO: Replace fmt.Prints with loggers
+	// We print the initialization message
 	fmt.Printf("Started "+job.Name+" job. Info: \n\t %+v\n\n", *job)
 
 	// Build nomad job from our pointer
@@ -98,10 +99,11 @@ func (no *Nomad) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 		return nil, err
 	}
 
+	// TODO: Replace fmt.Prints with loggers
 	// We print the finalization message
 	fmt.Println("Finished " + job.Name + " job\n")
 
-	// Get allocation of our executed job
+	// Obtain the allocation of our job in order to later access information about its execution.
 	alloc, err := no.getAllocation(job.Id)
 	if err != nil {
 		return nil, err
