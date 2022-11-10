@@ -12,6 +12,11 @@ import (
 )
 
 func argumentsToSlice(arguments *[]definitions.Parameter) []string {
+	/**
+	This function takes Hector's own parameter definitions and converts
+	them into an array of strings by adding dashes to the tags
+	*/
+
 	var args []string
 	for _, arg := range *arguments {
 		args = append(args, "--"+arg.Name)
