@@ -33,3 +33,5 @@ func Contains(s []string, str string) bool {
 
 	return false
 }
+
+func Ptr[T any](v T) *T { return &v }

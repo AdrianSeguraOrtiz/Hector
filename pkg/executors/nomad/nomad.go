@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/definitions"
 	"dag/hector/golang/module/pkg/jobs"
 	"dag/hector/golang/module/pkg/results"
@@ -33,7 +34,6 @@ func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
 
 	// 1. Task
 	args := argumentsToSlice(&job.Arguments)
-	attempts := 0
 	nomadTask := &api.Task{
 		Name:   taskName,
 		Driver: "docker",
@@ -41,25 +41,24 @@ func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
 			"image": job.Image,
 			"args":  args,
 		},
-		RestartPolicy: &api.RestartPolicy{Attempts: &attempts},
+		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
 
 	// 2. Task Group
 	nomadTaskGroup := &api.TaskGroup{
 		Name:          &taskGroupName,
 		Tasks:         []*api.Task{nomadTask},
-		RestartPolicy: &api.RestartPolicy{Attempts: &attempts},
+		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
 
 	// 3. Job
-	jobType := "batch"
 	nomadJob := &api.Job{
 		ID:          &job.Id,
 		Name:        &job.Name,
-		Type:        &jobType,
+		Type:        pkg.Ptr("batch"),
 		Datacenters: []string{"dc1"},
 		TaskGroups:  []*api.TaskGroup{nomadTaskGroup},
-		Reschedule:  &api.ReschedulePolicy{Attempts: &attempts},
+		Reschedule:  &api.ReschedulePolicy{Attempts: pkg.Ptr(0)},
 	}
 
 	return nomadJob
