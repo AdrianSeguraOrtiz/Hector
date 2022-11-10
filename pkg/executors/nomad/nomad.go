@@ -21,7 +21,7 @@ func argumentsToSlice(arguments *[]definitions.Parameter) []string {
 	var args []string
 	for _, arg := range *arguments {
 		args = append(args, "--"+arg.Name)
-		args = append(args, arg.Value.(string))
+		args = append(args, fmt.Sprintf("%v", arg.Value))
 	}
 	return args
 }
