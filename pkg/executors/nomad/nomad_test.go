@@ -184,42 +184,42 @@ func TestWaitForJob(t *testing.T) {
 		statusSequence []results.Status
 		expectedStatus results.Status
 		expectedTime   int64
-		err            error
+		err            bool
 	}{
 		{
 			jobId:          "Job-Id-1",
 			statusSequence: []results.Status{results.Done},
 			expectedStatus: results.Done,
 			expectedTime:   10,
-			err:            nil,
+			err:            false,
 		},
 		{
 			jobId:          "Job-Id-2",
 			statusSequence: []results.Status{results.Error},
 			expectedStatus: results.Error,
 			expectedTime:   10,
-			err:            nil,
+			err:            false,
 		},
 		{
 			jobId:          "Job-Id-3",
 			statusSequence: []results.Status{results.Waiting, results.Done},
 			expectedStatus: results.Done,
 			expectedTime:   20,
-			err:            nil,
+			err:            false,
 		},
 		{
 			jobId:          "Job-Id-4",
 			statusSequence: []results.Status{results.Waiting, results.Waiting, results.Error},
 			expectedStatus: results.Error,
 			expectedTime:   30,
-			err:            nil,
+			err:            false,
 		},
 		{
 			jobId:          "Job-Id-5",
 			statusSequence: []results.Status{results.Waiting, results.Done},
 			expectedStatus: results.Waiting,
 			expectedTime:   10,
-			err:            fmt.Errorf("the task status could not be detected"),
+			err:            true,
 		},
 	}
 
@@ -242,8 +242,8 @@ func TestWaitForJob(t *testing.T) {
 			}
 
 			cnt += 1
-			if tt.err != nil {
-				return nil, nil, tt.err
+			if tt.err {
+				return nil, nil, fmt.Errorf("the task status could not be detected")
 			}
 			return &api.JobSummary{Summary: summary}, nil, nil
 		}
@@ -253,14 +253,112 @@ func TestWaitForJob(t *testing.T) {
 			status, err := waitForJob(tt.jobId, taskGroupName, getSummaryMock)
 			end := time.Now()
 
-			if tt.err != err {
-				t.Error("The error produced by the function has not been as expected. Wanted " + fmt.Sprintf("%v", tt.err) + " got " + fmt.Sprintf("%v", err))
+			var errMsg string
+			if err != nil {
+				errMsg = err.Error()
+			}
+
+			if (tt.err && errMsg != "the task status could not be detected") || (!tt.err && err != nil) {
+				t.Error("The error produced by the function has not been as expected")
 			}
 			if status != tt.expectedStatus {
 				t.Error("The execution status is not as expected. Wanted " + fmt.Sprintf("%v", tt.expectedStatus) + " got " + fmt.Sprintf("%v", status))
 			}
 			if runTime := end.Sub(start).Milliseconds(); math.Abs(float64(runTime-tt.expectedTime)) > 2 {
 				t.Error("The waiting time has been different than expected. Wanted " + fmt.Sprintf("%v", tt.expectedTime) + "ms got " + fmt.Sprintf("%v", runTime) + "ms")
+			}
+		})
+	}
+}
+
+func TestGetAllocation(t *testing.T) {
+	type errs struct {
+		getAllAllocations bool
+		numAllocations    bool
+		getAllocInfo      bool
+	}
+	var tests = []struct {
+		jobId string
+		alloc *api.Allocation
+		errs  errs
+	}{
+		{
+			jobId: "Job-Id-1",
+			alloc: &api.Allocation{JobID: "Job-Id-1"},
+			errs: errs{
+				getAllAllocations: false,
+				numAllocations:    false,
+				getAllocInfo:      false,
+			},
+		},
+		{
+			jobId: "Job-Id-2",
+			alloc: nil,
+			errs: errs{
+				getAllAllocations: true,
+				numAllocations:    false,
+				getAllocInfo:      false,
+			},
+		},
+		{
+			jobId: "Job-Id-3",
+			alloc: nil,
+			errs: errs{
+				getAllAllocations: false,
+				numAllocations:    true,
+				getAllocInfo:      false,
+			},
+		},
+		{
+			jobId: "Job-Id-4",
+			alloc: nil,
+			errs: errs{
+				getAllAllocations: false,
+				numAllocations:    false,
+				getAllocInfo:      true,
+			},
+		},
+	}
+
+	for i, tt := range tests {
+
+		testname := "test_" + strconv.Itoa(i)
+		getAllAllocationsMock := func(jobID string, allAllocs bool, q *api.QueryOptions) ([]*api.AllocationListStub, *api.QueryMeta, error) {
+			if tt.errs.getAllAllocations {
+				return nil, nil, fmt.Errorf("it has not been possible to extract the allocations")
+			} else if tt.errs.numAllocations {
+				return []*api.AllocationListStub{{JobID: tt.jobId}, {}}, nil, nil
+			}
+			return []*api.AllocationListStub{{JobID: tt.jobId}}, nil, nil
+		}
+
+		getAllocInfoMock := func(allocID string, q *api.QueryOptions) (*api.Allocation, *api.QueryMeta, error) {
+			if tt.errs.getAllocInfo {
+				return nil, nil, fmt.Errorf("it has not been possible to extract alloc info")
+			}
+			return &api.Allocation{JobID: tt.jobId}, nil, nil
+		}
+
+		t.Run(testname, func(t *testing.T) {
+			alloc, err := getAllocation(tt.jobId, getAllAllocationsMock, getAllocInfoMock)
+			var errMsg string
+			if err != nil {
+				errMsg = err.Error()
+			}
+
+			if (tt.errs.getAllAllocations && errMsg != "it has not been possible to extract the allocations") ||
+				(tt.errs.numAllocations && errMsg != "unexpected number of allocs: 2") ||
+				(tt.errs.getAllocInfo && errMsg != "it has not been possible to extract alloc info") ||
+				(!tt.errs.getAllAllocations && !tt.errs.numAllocations && !tt.errs.getAllocInfo && err != nil) {
+				t.Error("The error produced by the function has not been as expected")
+			}
+
+			if alloc == nil || tt.alloc == nil {
+				if alloc != tt.alloc {
+					t.Error("The allocation obtained is not as expected. Want " + fmt.Sprintf("%v", tt.alloc) + " got" + fmt.Sprintf("%v", alloc))
+				}
+			} else if equal, msg := pkg.DeepValueEqual(*alloc, *tt.alloc, true); !equal {
+				t.Error("The allocation obtained is not as expected. " + msg)
 			}
 		})
 	}
