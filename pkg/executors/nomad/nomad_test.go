@@ -364,6 +364,73 @@ func TestGetAllocation(t *testing.T) {
 	}
 }
 
+func TestGetLogsFromAllocation(t *testing.T) {
+	var tests = []struct {
+		alloc       *api.Allocation
+		status      results.Status
+		expectedLog string
+		err         bool
+	}{
+		{
+			alloc:       &api.Allocation{JobID: "Job-Id-1"},
+			status:      results.Done,
+			expectedLog: "All right",
+			err:         false,
+		},
+		{
+			alloc:       &api.Allocation{JobID: "Job-Id-2"},
+			status:      results.Error,
+			expectedLog: "A task error has occurred",
+			err:         false,
+		},
+		{
+			alloc:       &api.Allocation{JobID: "Job-Id-3"},
+			status:      results.Done,
+			expectedLog: "",
+			err:         true,
+		},
+	}
+
+	for i, tt := range tests {
+
+		testname := "test_" + strconv.Itoa(i)
+		getChannelLogsMock := func(alloc *api.Allocation, follow bool, task string, logType string, origin string, offset int64, cancel <-chan struct{}, q *api.QueryOptions) (<-chan *api.StreamFrame, <-chan error) {
+
+			frames := make(chan *api.StreamFrame, 1)
+			var log string
+			switch logType {
+			case "stdout":
+				log = "All right"
+			case "stderr":
+				log = "A task error has occurred"
+			}
+			frames <- &api.StreamFrame{Data: []byte(log)}
+
+			errors := make(chan error, 1)
+			if tt.err {
+				errors <- fmt.Errorf("Logs could not be extracted")
+			}
+
+			return frames, errors
+		}
+
+		t.Run(testname, func(t *testing.T) {
+			logs, err := getLogsFromAllocation(tt.alloc, tt.status, "Task-"+tt.alloc.JobID, getChannelLogsMock)
+			var errMsg string
+			if err != nil {
+				errMsg = err.Error()
+			}
+
+			if (tt.err && errMsg != "Logs could not be extracted") || (!tt.err && err != nil) {
+				t.Error("The error produced by the function has not been as expected")
+			}
+			if logs != tt.expectedLog {
+				t.Error("Logs obtained are not as expected. Wanted " + tt.expectedLog + " got " + logs)
+			}
+		})
+	}
+}
+
 func TestExecuteJob(t *testing.T) {
 	var tests = []struct {
 		job    *jobs.Job
@@ -444,4 +511,6 @@ func TestExecuteJob(t *testing.T) {
 			}
 		})
 	}
+
+	defer nomad.Client.System().GarbageCollect()
 }

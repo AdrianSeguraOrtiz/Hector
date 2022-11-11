@@ -12,58 +12,6 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-func argumentsToSlice(arguments *[]definitions.Parameter) []string {
-	/**
-	This function takes Hector's own parameter definitions and converts
-	them into an array of strings by adding dashes to the tags
-	*/
-
-	var args []string
-	for _, arg := range *arguments {
-		args = append(args, "--"+arg.Name)
-		args = append(args, fmt.Sprintf("%v", arg.Value))
-	}
-	return args
-}
-
-func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
-	/**
-	This function is responsible for constructing the definition of a
-	nomad's own task from the Hector's own task pointer.
-	*/
-
-	// 1. Task
-	args := argumentsToSlice(&job.Arguments)
-	nomadTask := &api.Task{
-		Name:   taskName,
-		Driver: "docker",
-		Config: map[string]interface{}{
-			"image": job.Image,
-			"args":  args,
-		},
-		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
-	}
-
-	// 2. Task Group
-	nomadTaskGroup := &api.TaskGroup{
-		Name:          &taskGroupName,
-		Tasks:         []*api.Task{nomadTask},
-		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
-	}
-
-	// 3. Job
-	nomadJob := &api.Job{
-		ID:          &job.Id,
-		Name:        &job.Name,
-		Type:        pkg.Ptr("batch"),
-		Datacenters: []string{"dc1"},
-		TaskGroups:  []*api.TaskGroup{nomadTaskGroup},
-		Reschedule:  &api.ReschedulePolicy{Attempts: pkg.Ptr(0)},
-	}
-
-	return nomadJob
-}
-
 type Nomad struct {
 	Client *api.Client
 }
@@ -122,13 +70,65 @@ func (no *Nomad) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	}
 
 	// Get logs from our allocation
-	logs, err := no.getLogsFromAllocation(alloc, status, taskName)
+	logs, err := getLogsFromAllocation(alloc, status, taskName, no.Client.AllocFS().Logs)
 	if err != nil {
 		return nil, err
 	}
 
 	// We return the result job
 	return &results.ResultJob{Id: job.Id, Name: job.Name, Logs: warnings + logs, Status: status}, nil
+}
+
+func argumentsToSlice(arguments *[]definitions.Parameter) []string {
+	/**
+	This function takes Hector's own parameter definitions and converts
+	them into an array of strings by adding dashes to the tags
+	*/
+
+	var args []string
+	for _, arg := range *arguments {
+		args = append(args, "--"+arg.Name)
+		args = append(args, fmt.Sprintf("%v", arg.Value))
+	}
+	return args
+}
+
+func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
+	/**
+	This function is responsible for constructing the definition of a
+	nomad's own task from the Hector's own task pointer.
+	*/
+
+	// 1. Task
+	args := argumentsToSlice(&job.Arguments)
+	nomadTask := &api.Task{
+		Name:   taskName,
+		Driver: "docker",
+		Config: map[string]interface{}{
+			"image": job.Image,
+			"args":  args,
+		},
+		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+	}
+
+	// 2. Task Group
+	nomadTaskGroup := &api.TaskGroup{
+		Name:          &taskGroupName,
+		Tasks:         []*api.Task{nomadTask},
+		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+	}
+
+	// 3. Job
+	nomadJob := &api.Job{
+		ID:          &job.Id,
+		Name:        &job.Name,
+		Type:        pkg.Ptr("batch"),
+		Datacenters: []string{"dc1"},
+		TaskGroups:  []*api.TaskGroup{nomadTaskGroup},
+		Reschedule:  &api.ReschedulePolicy{Attempts: pkg.Ptr(0)},
+	}
+
+	return nomadJob
 }
 
 func waitForJob(jobId string, taskGroupName string, getSummary func(string, *api.QueryOptions) (*api.JobSummary, *api.QueryMeta, error)) (results.Status, error) {
@@ -162,7 +162,7 @@ func waitForJob(jobId string, taskGroupName string, getSummary func(string, *api
 	return status, nil
 }
 
-func getAllocation(jobId string, getAllAllocations func(jobID string, allAllocs bool, q *api.QueryOptions) ([]*api.AllocationListStub, *api.QueryMeta, error), getAllocInfo func(allocID string, q *api.QueryOptions) (*api.Allocation, *api.QueryMeta, error)) (*api.Allocation, error) {
+func getAllocation(jobId string, getAllAllocations func(string, bool, *api.QueryOptions) ([]*api.AllocationListStub, *api.QueryMeta, error), getAllocInfo func(string, *api.QueryOptions) (*api.Allocation, *api.QueryMeta, error)) (*api.Allocation, error) {
 	/**
 	This function returns the allocation corresponding to the previously
 	executed job whose id is provided as the input parameter
@@ -188,7 +188,7 @@ func getAllocation(jobId string, getAllAllocations func(jobID string, allAllocs 
 	return alloc, nil
 }
 
-func (no *Nomad) getLogsFromAllocation(alloc *api.Allocation, status results.Status, taskName string) (string, error) {
+func getLogsFromAllocation(alloc *api.Allocation, status results.Status, taskName string, getChannelLogs func(*api.Allocation, bool, string, string, string, int64, <-chan struct{}, *api.QueryOptions) (<-chan *api.StreamFrame, <-chan error)) (string, error) {
 	/**
 	This function is responsible for extracting the
 	logs stored in the allocation of our job.
@@ -204,7 +204,7 @@ func (no *Nomad) getLogsFromAllocation(alloc *api.Allocation, status results.Sta
 
 	// Get logs from our allocation
 	cancel := make(chan struct{})
-	frames, errors := no.Client.AllocFS().Logs(alloc, false, taskName, channel, "start", 0, cancel, nil)
+	frames, errors := getChannelLogs(alloc, false, taskName, channel, "start", 0, cancel, nil)
 
 	// Extract information from channels
 	var logs string
