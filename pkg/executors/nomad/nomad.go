@@ -98,7 +98,7 @@ func (no *Nomad) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	defer no.Client.Jobs().Deregister(job.Id, true, nil)
 
 	// We wait for the execution to finish
-	status, err := no.waitForJob(job.Id, taskGroupName)
+	status, err := waitForJob(job.Id, taskGroupName, no.Client.Jobs().Summary)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (no *Nomad) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	return &results.ResultJob{Id: job.Id, Name: job.Name, Logs: warnings + logs, Status: status}, nil
 }
 
-func (no *Nomad) waitForJob(jobId string, taskGroupName string) (results.Status, error) {
+func waitForJob(jobId string, taskGroupName string, getSummary func(string, *api.QueryOptions) (*api.JobSummary, *api.QueryMeta, error)) (results.Status, error) {
 	/**
 	This function is in charge of waiting for the execution
 	of the job whose id is provided as input parameter
@@ -146,7 +146,7 @@ func (no *Nomad) waitForJob(jobId string, taskGroupName string) (results.Status,
 		time.Sleep(10 * time.Millisecond)
 
 		// We obtain the most summarized information of our job (minimum amount of information found so as not to overload the loop)
-		jobSummary, _, err := no.Client.Jobs().Summary(jobId, nil)
+		jobSummary, _, err := getSummary(jobId, nil)
 		if err != nil {
 			return status, err
 		}

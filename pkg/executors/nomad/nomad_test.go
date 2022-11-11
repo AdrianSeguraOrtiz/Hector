@@ -5,10 +5,13 @@ import (
 	"dag/hector/golang/module/pkg/definitions"
 	"dag/hector/golang/module/pkg/jobs"
 	"dag/hector/golang/module/pkg/results"
+	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 )
@@ -170,6 +173,71 @@ func TestBuildJob(t *testing.T) {
 
 			if equal, message := pkg.DeepValueEqual(*nomadJob, *tt.nomadJob, true); !equal {
 				t.Error(message)
+			}
+		})
+	}
+}
+
+func TestWaitForJob(t *testing.T) {
+	var tests = []struct {
+		jobId          string
+		statusSequence []results.Status
+		expectedTime   int64
+	}{
+		{
+			jobId:          "Job-Id-1",
+			statusSequence: []results.Status{results.Done},
+			expectedTime:   10,
+		},
+		{
+			jobId:          "Job-Id-2",
+			statusSequence: []results.Status{results.Error},
+			expectedTime:   10,
+		},
+		{
+			jobId:          "Job-Id-3",
+			statusSequence: []results.Status{results.Waiting, results.Done},
+			expectedTime:   20,
+		},
+		{
+			jobId:          "Job-Id-4",
+			statusSequence: []results.Status{results.Waiting, results.Waiting, results.Error},
+			expectedTime:   30,
+		},
+	}
+
+	for i, tt := range tests {
+
+		testname := "test_" + strconv.Itoa(i)
+		cnt := 0
+		taskGroupName := "Task-Group-" + tt.jobId
+
+		getSummaryMock := func(jobId string, qo *api.QueryOptions) (*api.JobSummary, *api.QueryMeta, error) {
+			summary := make(map[string]api.TaskGroupSummary, 1)
+
+			switch tt.statusSequence[cnt] {
+			case results.Done:
+				summary[taskGroupName] = api.TaskGroupSummary{Complete: 1}
+			case results.Error:
+				summary[taskGroupName] = api.TaskGroupSummary{Failed: 1}
+			default:
+				summary[taskGroupName] = api.TaskGroupSummary{Running: 1}
+			}
+
+			cnt += 1
+			return &api.JobSummary{Summary: summary}, nil, nil
+		}
+
+		t.Run(testname, func(t *testing.T) {
+			start := time.Now()
+			status, _ := waitForJob(tt.jobId, taskGroupName, getSummaryMock)
+			end := time.Now()
+
+			if expectedStatus := tt.statusSequence[len(tt.statusSequence)-1]; status != expectedStatus {
+				t.Error("The execution status is not as expected. Wanted " + fmt.Sprintf("%v", expectedStatus) + " got " + fmt.Sprintf("%v", status))
+			}
+			if runTime := end.Sub(start).Milliseconds(); math.Abs(float64(runTime-tt.expectedTime)) > 2 {
+				t.Error("The waiting time has been different than expected. Wanted " + fmt.Sprintf("%v", tt.expectedTime) + "ms got " + fmt.Sprintf("%v", runTime) + "ms")
 			}
 		})
 	}
