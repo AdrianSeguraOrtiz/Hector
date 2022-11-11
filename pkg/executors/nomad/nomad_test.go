@@ -182,27 +182,44 @@ func TestWaitForJob(t *testing.T) {
 	var tests = []struct {
 		jobId          string
 		statusSequence []results.Status
+		expectedStatus results.Status
 		expectedTime   int64
+		err            error
 	}{
 		{
 			jobId:          "Job-Id-1",
 			statusSequence: []results.Status{results.Done},
+			expectedStatus: results.Done,
 			expectedTime:   10,
+			err:            nil,
 		},
 		{
 			jobId:          "Job-Id-2",
 			statusSequence: []results.Status{results.Error},
+			expectedStatus: results.Error,
 			expectedTime:   10,
+			err:            nil,
 		},
 		{
 			jobId:          "Job-Id-3",
 			statusSequence: []results.Status{results.Waiting, results.Done},
+			expectedStatus: results.Done,
 			expectedTime:   20,
+			err:            nil,
 		},
 		{
 			jobId:          "Job-Id-4",
 			statusSequence: []results.Status{results.Waiting, results.Waiting, results.Error},
+			expectedStatus: results.Error,
 			expectedTime:   30,
+			err:            nil,
+		},
+		{
+			jobId:          "Job-Id-5",
+			statusSequence: []results.Status{results.Waiting, results.Done},
+			expectedStatus: results.Waiting,
+			expectedTime:   10,
+			err:            fmt.Errorf("the task status could not be detected"),
 		},
 	}
 
@@ -225,16 +242,22 @@ func TestWaitForJob(t *testing.T) {
 			}
 
 			cnt += 1
+			if tt.err != nil {
+				return nil, nil, tt.err
+			}
 			return &api.JobSummary{Summary: summary}, nil, nil
 		}
 
 		t.Run(testname, func(t *testing.T) {
 			start := time.Now()
-			status, _ := waitForJob(tt.jobId, taskGroupName, getSummaryMock)
+			status, err := waitForJob(tt.jobId, taskGroupName, getSummaryMock)
 			end := time.Now()
 
-			if expectedStatus := tt.statusSequence[len(tt.statusSequence)-1]; status != expectedStatus {
-				t.Error("The execution status is not as expected. Wanted " + fmt.Sprintf("%v", expectedStatus) + " got " + fmt.Sprintf("%v", status))
+			if tt.err != err {
+				t.Error("The error produced by the function has not been as expected. Wanted " + fmt.Sprintf("%v", tt.err) + " got " + fmt.Sprintf("%v", err))
+			}
+			if status != tt.expectedStatus {
+				t.Error("The execution status is not as expected. Wanted " + fmt.Sprintf("%v", tt.expectedStatus) + " got " + fmt.Sprintf("%v", status))
 			}
 			if runTime := end.Sub(start).Milliseconds(); math.Abs(float64(runTime-tt.expectedTime)) > 2 {
 				t.Error("The waiting time has been different than expected. Wanted " + fmt.Sprintf("%v", tt.expectedTime) + "ms got " + fmt.Sprintf("%v", runTime) + "ms")
