@@ -39,7 +39,7 @@ func getElement[V Element](f func(string) (*V, error), w http.ResponseWriter, r 
 	id := vars["ID"]
 
 	// We launch a query to the database
-	databaseElementPointer, err := f(id)
+	databaseElement, err := f(id)
 	if err != nil {
 		log.Printf("Invalid id: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -48,7 +48,7 @@ func getElement[V Element](f func(string) (*V, error), w http.ResponseWriter, r 
 
 	// We write the output in the response writer
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(*databaseElementPointer)
+	json.NewEncoder(w).Encode(*databaseElement)
 }
 
 // Read and Validate Element function
@@ -77,7 +77,7 @@ func readAndValidateElement[V Element](f func(*V) error, w http.ResponseWriter, 
 }
 
 // We create a specific constructor for our problem
-func NewApi(controllerPointer *controllers.Controller) (*Api, error) {
+func NewApi(controller *controllers.Controller) (*Api, error) {
 	a := Api{}
 
 	r := mux.NewRouter()
@@ -91,7 +91,7 @@ func NewApi(controllerPointer *controllers.Controller) (*Api, error) {
 	r.HandleFunc("/result/get/{ID}", a.getResultDefinition).Methods(http.MethodGet)
 	a.Router = r
 
-	a.Controller = controllerPointer
+	a.Controller = controller
 
 	return &a, nil
 }

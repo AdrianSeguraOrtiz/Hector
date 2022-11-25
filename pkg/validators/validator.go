@@ -29,30 +29,30 @@ func NewValidator() *Validator {
 }
 
 // Validate Component schema
-func (val *Validator) ValidateComponentStruct(componentPointer *components.Component) error {
+func (val *Validator) ValidateComponentStruct(component *components.Component) error {
 	v := val.Validator
-	componentErr := v.Struct(*componentPointer)
+	componentErr := v.Struct(*component)
 	return componentErr
 }
 
 // Validate Specification schema
-func (val *Validator) ValidateSpecificationStruct(specificationPointer *specifications.Specification) error {
+func (val *Validator) ValidateSpecificationStruct(specification *specifications.Specification) error {
 	v := val.Validator
-	specificationErr := v.Struct(*specificationPointer)
+	specificationErr := v.Struct(*specification)
 	return specificationErr
 }
 
 // Validate Definition schema
-func (val *Validator) ValidateDefinitionStruct(definitionPointer *definitions.Definition) error {
+func (val *Validator) ValidateDefinitionStruct(definition *definitions.Definition) error {
 	v := val.Validator
-	definitionErr := v.Struct(*definitionPointer)
+	definitionErr := v.Struct(*definition)
 	return definitionErr
 }
 
 // For each task defined in the specification, its information in the definition file is checked.
-func (val *Validator) ValidateDefinitionTaskNames(definitionTaskArrayPointer *[]definitions.DefinitionTask, specificationTaskArrayPointer *[]specifications.SpecificationTask) error {
-	for _, specificationTask := range *specificationTaskArrayPointer {
-		idxDefinitionTask := slices.IndexFunc(*definitionTaskArrayPointer, func(t definitions.DefinitionTask) bool { return t.Name == specificationTask.Name })
+func (val *Validator) ValidateDefinitionTaskNames(definitionTaskArray *[]definitions.DefinitionTask, specificationTaskArray *[]specifications.SpecificationTask) error {
+	for _, specificationTask := range *specificationTaskArray {
+		idxDefinitionTask := slices.IndexFunc(*definitionTaskArray, func(t definitions.DefinitionTask) bool { return t.Name == specificationTask.Name })
 		if idxDefinitionTask == -1 {
 			return fmt.Errorf("task %s is required in the selected specification but is not present in the definition file", specificationTask.Name)
 		}
@@ -61,13 +61,13 @@ func (val *Validator) ValidateDefinitionTaskNames(definitionTaskArrayPointer *[]
 }
 
 // For each parameter defined in the specification, it is checked that the definition file includes it and associates a valid value for it.
-func (val *Validator) ValidateDefinitionParameters(definitionParameterArrayPointer *[]definitions.Parameter, specificationPutArrayPointer *[]components.Put) error {
-	for _, componentPut := range *specificationPutArrayPointer {
-		idxDefinitionParameter := slices.IndexFunc(*definitionParameterArrayPointer, func(p definitions.Parameter) bool { return p.Name == componentPut.Name })
+func (val *Validator) ValidateDefinitionParameters(definitionParameterArray *[]definitions.Parameter, specificationPutArray *[]components.Put) error {
+	for _, componentPut := range *specificationPutArray {
+		idxDefinitionParameter := slices.IndexFunc(*definitionParameterArray, func(p definitions.Parameter) bool { return p.Name == componentPut.Name })
 		if idxDefinitionParameter == -1 {
 			return fmt.Errorf("parameter %s is required but is not present in the definition file", componentPut.Name)
 		}
-		definitionParameter := (*definitionParameterArrayPointer)[idxDefinitionParameter]
+		definitionParameter := (*definitionParameterArray)[idxDefinitionParameter]
 		if reflect.TypeOf(definitionParameter.Value).String() != componentPut.Type {
 			return fmt.Errorf("parameter %s has an invalid value in the definition file", componentPut.Name)
 		}

@@ -27,46 +27,20 @@ type Controller struct {
 	Validator *validators.Validator
 }
 
-func NewController(tool string, strategy string, repo string) (*Controller, error) {
-	// Create Executor
-	ex, err := executors.NewExecutor(tool)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create Scheduler
-	sc, err := schedulers.NewScheduler(strategy)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create Database
-	db, err := databases.NewDatabase(repo)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create Validator
-	val := validators.NewValidator()
-
-	// Return Controller pointer
-	return &Controller{Executor: ex, Scheduler: sc, Database: db, Validator: val}, nil
-}
-
-func (c *Controller) Invoke(definitionPointer *definitions.Definition) (*results.ResultDefinition, error) {
+func (c *Controller) Invoke(definition *definitions.Definition) (*results.ResultDefinition, error) {
 	/**
 	This function is responsible for the complete execution of a given definition.
 	*/
 
 	// Get jobs in topological order thanks to the scheduler while simultaneously validating the tasks
 	// and parameters exposed in the definition (must be compatible with the corresponding specification).
-	nestedJobs, err := getJobs(definitionPointer, c.Database, c.Validator)
+	nestedJobs, err := getJobs(definition, c.Database, c.Validator)
 	if err != nil {
 		return nil, fmt.Errorf("error while trying to get jobs %s", err.Error())
 	}
 
 	// If the definition already has a result in the database we download it.
-	resultDefinitionPointer, err := (*c.Database).GetResultDefinition((*definitionPointer).Id)
+	resultDefinition, err := (*c.Database).GetResultDefinition(definition.Id)
 
 	// Otherwise we create an empty one, set all its jobs to waiting and upload it to the database before starting the execution.
 	switch err.(type) {
@@ -76,22 +50,22 @@ func (c *Controller) Invoke(definitionPointer *definitions.Definition) (*results
 			log.Printf(err.Error() + " A new document is created.")
 
 			// Create empty result definition
-			resultDefinitionPointer = &results.ResultDefinition{
-				Id:              (*definitionPointer).Id,
-				Name:            (*definitionPointer).Name,
-				SpecificationId: (*definitionPointer).SpecificationId,
+			resultDefinition = &results.ResultDefinition{
+				Id:              definition.Id,
+				Name:            definition.Name,
+				SpecificationId: definition.SpecificationId,
 				ResultJobs:      []results.ResultJob{},
 			}
 
 			// We instantiate all its works in a waiting state
 			for _, jobGroup := range nestedJobs {
 				for _, job := range jobGroup {
-					(*resultDefinitionPointer).ResultJobs = append((*resultDefinitionPointer).ResultJobs, results.ResultJob{Id: job.Id, Name: job.Name, Status: results.Waiting})
+					resultDefinition.ResultJobs = append(resultDefinition.ResultJobs, results.ResultJob{Id: job.Id, Name: job.Name, Status: results.Waiting})
 				}
 			}
 
 			// We add the result definition to the database
-			err := (*c.Database).AddResultDefinition(resultDefinitionPointer)
+			err := (*c.Database).AddResultDefinition(resultDefinition)
 			if err != nil {
 				return nil, fmt.Errorf("error during insertion into the database %s", err.Error())
 			}
@@ -104,16 +78,16 @@ func (c *Controller) Invoke(definitionPointer *definitions.Definition) (*results
 	}
 
 	// Execute jobs
-	(*resultDefinitionPointer).ResultJobs, err = executeJobs(&nestedJobs, c.Executor, resultDefinitionPointer, c.Database)
+	resultDefinition.ResultJobs, err = executeJobs(&nestedJobs, c.Executor, resultDefinition, c.Database)
 	if err != nil {
 		return nil, fmt.Errorf("error during execution %s", err.Error())
 	}
 
 	// We return the pointer to the constructed result definition
-	return resultDefinitionPointer, nil
+	return resultDefinition, nil
 }
 
-func getJobs(definitionPointer *definitions.Definition, databasePointer *databases.Database, validatorPointer *validators.Validator) ([][]jobs.Job, error) {
+func getJobs(definition *definitions.Definition, database *databases.Database, validator *validators.Validator) ([][]jobs.Job, error) {
 	/**
 	This function is responsible for extracting the jobs (minimum units of information for an execution)
 	in the order established by the scheduler. In addition, during the process it is in charge of validating
@@ -121,17 +95,17 @@ func getJobs(definitionPointer *definitions.Definition, databasePointer *databas
 	*/
 
 	// We extract the associated specification and its topological order
-	specificationPointer, err := (*databasePointer).GetSpecification((*definitionPointer).SpecificationId)
+	specification, err := (*database).GetSpecification(definition.SpecificationId)
 	if err != nil {
 		return nil, err
 	}
-	planningPointer, err := (*databasePointer).GetPlanning((*definitionPointer).SpecificationId)
+	planning, err := (*database).GetPlanning(definition.SpecificationId)
 	if err != nil {
 		return nil, err
 	}
 
 	// We validate that the tasks required in the specification are specified in the definition file
-	taskValidatorErr := (*validatorPointer).ValidateDefinitionTaskNames(&(*definitionPointer).Data.Tasks, &(*specificationPointer).Spec.Dag.Tasks)
+	taskValidatorErr := validator.ValidateDefinitionTaskNames(&definition.Data.Tasks, &specification.Spec.Dag.Tasks)
 	if taskValidatorErr != nil {
 		return nil, taskValidatorErr
 	}
@@ -140,7 +114,7 @@ func getJobs(definitionPointer *definitions.Definition, databasePointer *databas
 	var nestedJobs [][]jobs.Job
 
 	// For each group of tasks ...
-	for _, taskGroup := range *planningPointer {
+	for _, taskGroup := range *planning {
 
 		// One-dimensional vector for storing group tasks
 		var jobsGroup []jobs.Job
@@ -149,26 +123,26 @@ func getJobs(definitionPointer *definitions.Definition, databasePointer *databas
 		for _, taskName := range taskGroup {
 
 			// A. We extract the task information from the definition file
-			idxDefinitionTask := slices.IndexFunc((*definitionPointer).Data.Tasks, func(t definitions.DefinitionTask) bool { return t.Name == taskName })
-			definitionTask := (*definitionPointer).Data.Tasks[idxDefinitionTask]
+			idxDefinitionTask := slices.IndexFunc(definition.Data.Tasks, func(t definitions.DefinitionTask) bool { return t.Name == taskName })
+			definitionTask := definition.Data.Tasks[idxDefinitionTask]
 
 			// B. We extract the task information from the specification struct (mainly to know the identifier of its component)
-			idxSpecificationTask := slices.IndexFunc((*specificationPointer).Spec.Dag.Tasks, func(t specifications.SpecificationTask) bool { return t.Name == taskName })
-			specificationTask := (*specificationPointer).Spec.Dag.Tasks[idxSpecificationTask]
+			idxSpecificationTask := slices.IndexFunc(specification.Spec.Dag.Tasks, func(t specifications.SpecificationTask) bool { return t.Name == taskName })
+			specificationTask := specification.Spec.Dag.Tasks[idxSpecificationTask]
 			componentId := specificationTask.Component
 
 			// C. We extract the information about the task component
-			execComponentPointer, err := (*databasePointer).GetComponent(componentId)
+			execComponent, err := (*database).GetComponent(componentId)
 			if err != nil {
 				return nil, err
 			}
 
 			// D. We check that the parameters entered (inputs/outputs) in the definition file are correct
-			inputValidatorErr := (*validatorPointer).ValidateDefinitionParameters(&definitionTask.Inputs, &(*execComponentPointer).Inputs)
+			inputValidatorErr := validator.ValidateDefinitionParameters(&definitionTask.Inputs, &execComponent.Inputs)
 			if inputValidatorErr != nil {
 				return nil, inputValidatorErr
 			}
-			outputValidatorErr := (*validatorPointer).ValidateDefinitionParameters(&definitionTask.Outputs, &(*execComponentPointer).Outputs)
+			outputValidatorErr := validator.ValidateDefinitionParameters(&definitionTask.Outputs, &execComponent.Outputs)
 			if outputValidatorErr != nil {
 				return nil, outputValidatorErr
 			}
@@ -177,7 +151,7 @@ func getJobs(definitionPointer *definitions.Definition, databasePointer *databas
 			job := jobs.Job{
 				Id:           xid.New().String(),
 				Name:         taskName,
-				Image:        (*execComponentPointer).ContainerImage,
+				Image:        execComponent.ContainerImage,
 				Arguments:    append(definitionTask.Inputs, definitionTask.Outputs...),
 				Dependencies: specificationTask.Dependencies,
 			}
@@ -192,7 +166,7 @@ func getJobs(definitionPointer *definitions.Definition, databasePointer *databas
 	return nestedJobs, nil
 }
 
-func executeJobs(nestedJobsPointer *[][]jobs.Job, executorPointer *executors.Executor, resultDefinitionPointer *results.ResultDefinition, databasePointer *databases.Database) ([]results.ResultJob, error) {
+func executeJobs(nestedJobs *[][]jobs.Job, executor *executors.Executor, resultDefinition *results.ResultDefinition, database *databases.Database) ([]results.ResultJob, error) {
 	/**
 	This function is responsible for executing the jobs in the order established in the
 	two-dimensional list. In addition, it stores real-time information in the database
@@ -206,12 +180,12 @@ func executeJobs(nestedJobsPointer *[][]jobs.Job, executorPointer *executors.Exe
 	mutex := &sync.RWMutex{}
 
 	// We fill the map with the input Result Definition (remote storage)
-	for _, jobRes := range (*resultDefinitionPointer).ResultJobs {
+	for _, jobRes := range resultDefinition.ResultJobs {
 		jobResults[jobRes.Name] = jobRes
 	}
 
 	// For each group of tasks ...
-	for _, jobGroup := range *nestedJobsPointer {
+	for _, jobGroup := range *nestedJobs {
 
 		// We create an error group to allow waiting for all tasks belonging to the group and collect any error
 		var errg errgroup.Group
@@ -241,7 +215,7 @@ func executeJobs(nestedJobsPointer *[][]jobs.Job, executorPointer *executors.Exe
 					jobResults[job.Name] = jobRes
 
 					// Save result job in remote storage
-					err := (*databasePointer).UpdateResultJob(&jobRes, (*resultDefinitionPointer).Id)
+					err := (*database).UpdateResultJob(&jobRes, resultDefinition.Id)
 					if err != nil {
 						return nil, err
 					}
@@ -261,18 +235,18 @@ func executeJobs(nestedJobsPointer *[][]jobs.Job, executorPointer *executors.Exe
 				j := job
 				errg.Go(func() error {
 					// Execute job
-					jobResPointer, err := (*executorPointer).ExecuteJob(&j)
+					jobRes, err := (*executor).ExecuteJob(&j)
 					if err != nil {
 						return err
 					}
 
 					// Save result in local storage (with control access)
 					mutex.Lock()
-					jobResults[j.Name] = *jobResPointer
+					jobResults[j.Name] = *jobRes
 					mutex.Unlock()
 
 					// Save result in remote storage
-					updateErr := (*databasePointer).UpdateResultJob(jobResPointer, (*resultDefinitionPointer).Id)
+					updateErr := (*database).UpdateResultJob(jobRes, resultDefinition.Id)
 					if updateErr != nil {
 						return updateErr
 					}
