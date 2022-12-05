@@ -11,15 +11,15 @@ func NewTopologicalGrouped() *TopologicalGrouped {
 	return &TopologicalGrouped{}
 }
 
-func (tg *TopologicalGrouped) Plan(specification *specifications.Specification) ([][]string, error) {
-	/*
-		This function establishes a grouped topological order
-		for an optimal and correct definition of tasks defined
-		on a specification.
+/**
+This function establishes a grouped topological order
+for an optimal and correct definition of tasks defined
+on a specification.
 
-		Takes the specification pointer as input and returns a
-		two-dimensional vector with the names of the sorted tasks.
-	*/
+Takes the specification pointer as input and returns a
+two-dimensional vector with the names of the sorted tasks.
+*/
+func (tg *TopologicalGrouped) Plan(specification *specifications.Specification) ([][]string, error) {
 
 	// The task array is extracted from the value of the input pointer.
 	tasks := specification.Spec.Dag.Tasks
@@ -69,16 +69,16 @@ func (tg *TopologicalGrouped) Plan(specification *specifications.Specification) 
 	return result, nil
 }
 
-func getChildren(taskName string, tasks *[]specifications.SpecificationTask) []string {
-	/*
-		This function is in charge of extracting the dependent tasks
-		of the one specified in the entry.
+/**
+This function is in charge of extracting the dependent tasks
+of the one specified in the entry.
 
-		It takes as input the name of the task whose children you want
-		to know, and the pointer to the total set of tasks in the specification.
-		Finally it returns as result an array with the names of the
-		children of the input task.
-	*/
+It takes as input the name of the task whose children you want
+to know, and the pointer to the total set of tasks in the specification.
+Finally it returns as result an array with the names of the
+children of the input task.
+*/
+func getChildren(taskName string, tasks *[]specifications.SpecificationTask) []string {
 
 	// Declare the result list
 	var children []string

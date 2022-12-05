@@ -27,10 +27,8 @@ func NewDBMock() *DBMock {
 	return &db
 }
 
+// Performs a query to extract a component given its identifier
 func (dbm *DBMock) GetComponent(id string) (*components.Component, error) {
-	/*
-	   Performs a query to extract a component given its identifier
-	*/
 
 	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == id })
 	if idx == -1 {
@@ -40,10 +38,8 @@ func (dbm *DBMock) GetComponent(id string) (*components.Component, error) {
 	return &component, nil
 }
 
+// Performs a query to extract a specification given its identifier
 func (dbm *DBMock) GetSpecification(id string) (*specifications.Specification, error) {
-	/*
-	   Performs a query to extract a specification given its identifier
-	*/
 
 	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == id })
 	if idx == -1 {
@@ -53,10 +49,8 @@ func (dbm *DBMock) GetSpecification(id string) (*specifications.Specification, e
 	return &specification, nil
 }
 
+// Performs a query to extract the planning of a specification given its identifier
 func (dbm *DBMock) GetPlanning(id string) (*[][]string, error) {
-	/*
-	   Performs a query to extract the planning of a specification given its identifier
-	*/
 
 	planning := dbm.PlanningOfSpecifications[id]
 	if len(planning) == 0 {
@@ -65,10 +59,8 @@ func (dbm *DBMock) GetPlanning(id string) (*[][]string, error) {
 	return &planning, nil
 }
 
+// Performs a query to extract a definition given its identifier
 func (dbm *DBMock) GetDefinition(id string) (*definitions.Definition, error) {
-	/*
-	   Performs a query to extract a definition given its identifier
-	*/
 
 	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == id })
 	if idx == -1 {
@@ -78,10 +70,8 @@ func (dbm *DBMock) GetDefinition(id string) (*definitions.Definition, error) {
 	return &definition, nil
 }
 
+// Performs a query to extract a result definition given its identifier
 func (dbm *DBMock) GetResultDefinition(id string) (*results.ResultDefinition, error) {
-	/*
-	   Performs a query to extract a result definition given its identifier
-	*/
 
 	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == id })
 	if idx == -1 {
@@ -91,10 +81,8 @@ func (dbm *DBMock) GetResultDefinition(id string) (*results.ResultDefinition, er
 	return &resultDefinition, nil
 }
 
+// Insert component in database
 func (dbm *DBMock) AddComponent(component *components.Component) error {
-	/*
-	   Insert component in database
-	*/
 
 	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == component.Id })
 	if idx != -1 {
@@ -104,10 +92,8 @@ func (dbm *DBMock) AddComponent(component *components.Component) error {
 	return nil
 }
 
+// Insert specification in database
 func (dbm *DBMock) AddSpecification(specification *specifications.Specification) error {
-	/*
-	   Insert specification in database
-	*/
 
 	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == specification.Id })
 	if idx != -1 {
@@ -117,10 +103,8 @@ func (dbm *DBMock) AddSpecification(specification *specifications.Specification)
 	return nil
 }
 
+// Insert planning in database
 func (dbm *DBMock) AddPlanning(planning *[][]string, specificationId string) error {
-	/*
-	   Insert planning in database
-	*/
 
 	if _, exists := dbm.PlanningOfSpecifications[specificationId]; exists {
 		return &errors.DuplicateIDErr{Type: "Planning", Id: specificationId}
@@ -129,10 +113,8 @@ func (dbm *DBMock) AddPlanning(planning *[][]string, specificationId string) err
 	return nil
 }
 
+// Insert definition in database
 func (dbm *DBMock) AddDefinition(definition *definitions.Definition) error {
-	/*
-	   Insert definition in database
-	*/
 
 	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == definition.Id })
 	if idx != -1 {
@@ -142,10 +124,8 @@ func (dbm *DBMock) AddDefinition(definition *definitions.Definition) error {
 	return nil
 }
 
+// Insert result definition in database
 func (dbm *DBMock) AddResultDefinition(resultDefinition *results.ResultDefinition) error {
-	/*
-	   Insert result definition in database
-	*/
 
 	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == resultDefinition.Id })
 	if idx != -1 {
@@ -155,10 +135,8 @@ func (dbm *DBMock) AddResultDefinition(resultDefinition *results.ResultDefinitio
 	return nil
 }
 
+// Update Result Job into Result Definition in database
 func (dbm *DBMock) UpdateResultJob(resultJob *results.ResultJob, resultDefinitionId string) error {
-	/*
-		Update Result Job into Result Definition in database
-	*/
 
 	idxResultDefinition := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == resultDefinitionId })
 	if idxResultDefinition == -1 {
@@ -176,10 +154,8 @@ func (dbm *DBMock) UpdateResultJob(resultJob *results.ResultJob, resultDefinitio
 	return nil
 }
 
+// Returns those definitions where some of their tasks are pending execution.
 func (dbm *DBMock) GetDefinitionsWithWaitings() (*[]definitions.Definition, error) {
-	/*
-		Returns those definitions where some of their tasks are pending execution.
-	*/
 
 	var res []definitions.Definition
 

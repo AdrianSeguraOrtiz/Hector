@@ -27,10 +27,8 @@ type Controller struct {
 	Validator *validators.Validator
 }
 
+// This function is responsible for the complete execution of a given definition.
 func (c *Controller) Invoke(definition *definitions.Definition) (*results.ResultDefinition, error) {
-	/**
-	This function is responsible for the complete execution of a given definition.
-	*/
 
 	// Get jobs in topological order thanks to the scheduler while simultaneously validating the tasks
 	// and parameters exposed in the definition (must be compatible with the corresponding specification).
@@ -87,12 +85,12 @@ func (c *Controller) Invoke(definition *definitions.Definition) (*results.Result
 	return resultDefinition, nil
 }
 
+/**
+This function is responsible for extracting the jobs (minimum units of information for an execution)
+in the order established by the scheduler. In addition, during the process it is in charge of validating
+the consistency between the definition and the specification and components.
+*/
 func getJobs(definition *definitions.Definition, database *databases.Database, validator *validators.Validator) ([][]jobs.Job, error) {
-	/**
-	This function is responsible for extracting the jobs (minimum units of information for an execution)
-	in the order established by the scheduler. In addition, during the process it is in charge of validating
-	the consistency between the definition and the specification and components.
-	*/
 
 	// We extract the associated specification and its topological order
 	specification, err := (*database).GetSpecification(definition.SpecificationId)
@@ -166,12 +164,12 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 	return nestedJobs, nil
 }
 
+/**
+This function is responsible for executing the jobs in the order established in the
+two-dimensional list. In addition, it stores real-time information in the database
+in order to facilitate the resolution of cuts during execution.
+*/
 func executeJobs(nestedJobs *[][]jobs.Job, executor *executors.Executor, resultDefinition *results.ResultDefinition, database *databases.Database) ([]results.ResultJob, error) {
-	/**
-	This function is responsible for executing the jobs in the order established in the
-	two-dimensional list. In addition, it stores real-time information in the database
-	in order to facilitate the resolution of cuts during execution.
-	*/
 
 	// We create a map for storing the results of each job (local storage)
 	jobResults := make(map[string]results.ResultJob)

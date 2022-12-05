@@ -14,10 +14,8 @@ func NewExecMock() *ExecMock {
 	return &ExecMock{}
 }
 
+// This function simulates the definition of a job.
 func (em *ExecMock) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
-	/*
-		This function simulates the definition of a job.
-	*/
 
 	// We print the initialization message and display the job information
 	fmt.Printf("Started "+job.Name+" job. Info: \n\t %+v\n\n", *job)

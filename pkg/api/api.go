@@ -27,12 +27,11 @@ type Element interface {
 	components.Component | specifications.Specification | [][]string | definitions.Definition | results.ResultDefinition
 }
 
-// Get Element function
+/**
+This function is in charge of avoiding code repetition, it receives a get
+function from the database and returns the requested information based on it.
+*/
 func getElement[V Element](f func(string) (*V, error), w http.ResponseWriter, r *http.Request) {
-	/**
-	This function is in charge of avoiding code repetition, it receives a get
-	function from the database and returns the requested information based on it.
-	*/
 
 	// We collect the ID of the url
 	vars := mux.Vars(r)
@@ -51,12 +50,11 @@ func getElement[V Element](f func(string) (*V, error), w http.ResponseWriter, r 
 	json.NewEncoder(w).Encode(*databaseElement)
 }
 
-// Read and Validate Element function
+/**
+This function prevents code repetition, collects information from
+the request body and validates its structure.
+*/
 func readAndValidateElement[V Element](f func(*V) error, w http.ResponseWriter, r *http.Request) (V, error) {
-	/**
-	This function prevents code repetition, collects information from
-	the request body and validates its structure.
-	*/
 
 	// Read element from body
 	var element V
@@ -96,11 +94,8 @@ func NewApi(controller *controllers.Controller) (*Api, error) {
 	return &a, nil
 }
 
-// Submit Component function
+// Function in charge of adding a new component to the database.
 func (a *Api) submitComponent(w http.ResponseWriter, r *http.Request) {
-	/**
-	Function in charge of adding a new component to the database.
-	*/
 
 	// Read component from body and validate scheme
 	component, err := readAndValidateElement(a.Controller.Validator.ValidateComponentStruct, w, r)
@@ -119,11 +114,8 @@ func (a *Api) submitComponent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Submit Specification function
+// Function in charge of adding a new specification to the database.
 func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
-	/**
-	Function in charge of adding a new specification to the database.
-	*/
 
 	// Read specification from body and validate scheme
 	specification, err := readAndValidateElement(a.Controller.Validator.ValidateSpecificationStruct, w, r)
@@ -160,11 +152,8 @@ func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Execute Definition function
+// Function in charge of executing a definition.
 func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
-	/**
-	Function in charge of executing a definition.
-	*/
 
 	// Read definition from body and validate scheme
 	definition, err := readAndValidateElement(a.Controller.Validator.ValidateDefinitionStruct, w, r)

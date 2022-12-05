@@ -54,11 +54,11 @@ func NewExecGolang() *ExecGolang {
 	return &ExecGolang{}
 }
 
+/**
+This function executes a job locally.
+Based on: https://docs.docker.com/engine/api/sdk/#sdk-and-api-quickstart and https://docs.docker.com/engine/api/sdk/examples/
+*/
 func (eg *ExecGolang) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
-	/*
-		This function executes a job locally.
-		Based on: https://docs.docker.com/engine/api/sdk/#sdk-and-api-quickstart and https://docs.docker.com/engine/api/sdk/examples/
-	*/
 
 	// We print the initialization message and display the job information
 	fmt.Printf("Started "+job.Name+" job. Info: \n\t %+v\n\n", *job)
