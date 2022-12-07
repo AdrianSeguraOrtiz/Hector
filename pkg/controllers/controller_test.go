@@ -14,6 +14,9 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+
+	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 )
 
 func TestGetAndCheckSpecPlanning(t *testing.T) {
@@ -371,6 +374,7 @@ func TestGetOrDefaultResultDefinition(t *testing.T) {
 		},
 	}
 
+	// Classic tests variable
 	var tests = []struct {
 		definition       *definitions.Definition
 		nestedJobs       *[][]jobs.Job
@@ -406,4 +410,134 @@ func TestGetOrDefaultResultDefinition(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckJobExecutionRequirements(t *testing.T) {
+
+	// Declare job results (local storage)
+	jobResults := map[string]results.ResultJob{
+		"JP1": {
+			Id:     "JP1",
+			Status: results.Done,
+		},
+		"J1": {
+			Id:     "J1",
+			Status: results.Waiting,
+		},
+		"JP2": {
+			Id:     "JP2",
+			Status: results.Error,
+		},
+		"J2": {
+			Id:     "J2",
+			Status: results.Waiting,
+		},
+		"JP3": {
+			Id:     "JP3",
+			Status: results.Cancelled,
+		},
+		"J3": {
+			Id:     "J3",
+			Status: results.Waiting,
+		},
+		"J4": {
+			Id:     "J4",
+			Status: results.Waiting,
+		},
+		"J5": {
+			Id:     "J5",
+			Status: results.Done,
+		},
+		"J6": {
+			Id:     "J6",
+			Status: results.Error,
+		},
+		"J7": {
+			Id:     "J7",
+			Status: results.Cancelled,
+		},
+	}
+
+	// Declare result definitions
+	resultDefinition := results.ResultDefinition{
+		Id:         "RD-ID",
+		ResultJobs: maps.Values(jobResults),
+	}
+
+	// Classic tests variable
+	var tests = []struct {
+		job   *jobs.Job
+		valid bool
+	}{
+		{
+			job: &jobs.Job{
+				Id:           "J1",
+				Name:         "J1",
+				Dependencies: []string{"JP1"},
+			},
+			valid: true,
+		},
+		{
+			job: &jobs.Job{
+				Id:           "J2",
+				Name:         "J2",
+				Dependencies: []string{"JP2"},
+			},
+			valid: false,
+		},
+		{
+			job: &jobs.Job{
+				Id:           "J3",
+				Name:         "J3",
+				Dependencies: []string{"JP3"},
+			},
+			valid: false,
+		},
+		{
+			job:   &jobs.Job{Id: "J4", Name: "J4"},
+			valid: true,
+		},
+		{
+			job:   &jobs.Job{Id: "J5", Name: "J5"},
+			valid: false,
+		},
+		{
+			job:   &jobs.Job{Id: "J6", Name: "J6"},
+			valid: false,
+		},
+		{
+			job:   &jobs.Job{Id: "J7", Name: "J7"},
+			valid: false,
+		},
+	}
+
+	// Create Database
+	var database databases.Database = dbmock.NewDBMock()
+
+	// Add executed result definition to the database
+	database.AddResultDefinition(&resultDefinition)
+
+	for i, tt := range tests {
+
+		testname := "test_" + strconv.Itoa(i)
+		t.Run(testname, func(t *testing.T) {
+			validForExecution, err := checkJobExecutionRequirements(tt.job, &jobResults, &database, resultDefinition.Id)
+
+			if err != nil {
+				t.Error("Unexpected error detected: " + err.Error())
+			} else if validForExecution != tt.valid {
+				t.Error("The function has provided an unexpected value. Got " + strconv.FormatBool(validForExecution) + " but want " + strconv.FormatBool(tt.valid))
+			} else if len(tt.job.Dependencies) > 0 && jobResults[tt.job.Dependencies[0]].Status != results.Done {
+				if status := jobResults[tt.job.Name].Status; status != results.Cancelled {
+					t.Error("The status recorded in the local storage is not correct. Cancelled was expected but obtained " + fmt.Sprintf("%v", status))
+				}
+				resDef, _ := database.GetResultDefinition(resultDefinition.Id)
+				idx := slices.IndexFunc(resDef.ResultJobs, func(rj results.ResultJob) bool { return rj.Id == tt.job.Id })
+				if status := resDef.ResultJobs[idx].Status; status != results.Cancelled {
+					t.Error("The status recorded in the remote storage is not correct. Cancelled was expected but obtained " + fmt.Sprintf("%v", status))
+				}
+			}
+		})
+	}
+
 }
