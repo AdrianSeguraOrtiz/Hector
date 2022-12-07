@@ -6,6 +6,8 @@ import (
 	"dag/hector/golang/module/pkg/databases"
 	"dag/hector/golang/module/pkg/databases/dbmock"
 	"dag/hector/golang/module/pkg/definitions"
+	"dag/hector/golang/module/pkg/executors"
+	"dag/hector/golang/module/pkg/executors/execmock"
 	"dag/hector/golang/module/pkg/jobs"
 	"dag/hector/golang/module/pkg/results"
 	"dag/hector/golang/module/pkg/specifications"
@@ -13,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"sync"
 	"testing"
 
 	"golang.org/x/exp/maps"
@@ -416,43 +419,43 @@ func TestCheckJobExecutionRequirements(t *testing.T) {
 
 	// Declare job results (local storage)
 	jobResults := map[string]results.ResultJob{
-		"JP1": {
+		"NameJP1": {
 			Id:     "JP1",
 			Status: results.Done,
 		},
-		"J1": {
+		"NameJ1": {
 			Id:     "J1",
 			Status: results.Waiting,
 		},
-		"JP2": {
+		"NameJP2": {
 			Id:     "JP2",
 			Status: results.Error,
 		},
-		"J2": {
+		"NameJ2": {
 			Id:     "J2",
 			Status: results.Waiting,
 		},
-		"JP3": {
+		"NameJP3": {
 			Id:     "JP3",
 			Status: results.Cancelled,
 		},
-		"J3": {
+		"NameJ3": {
 			Id:     "J3",
 			Status: results.Waiting,
 		},
-		"J4": {
+		"NameJ4": {
 			Id:     "J4",
 			Status: results.Waiting,
 		},
-		"J5": {
+		"NameJ5": {
 			Id:     "J5",
 			Status: results.Done,
 		},
-		"J6": {
+		"NameJ6": {
 			Id:     "J6",
 			Status: results.Error,
 		},
-		"J7": {
+		"NameJ7": {
 			Id:     "J7",
 			Status: results.Cancelled,
 		},
@@ -472,41 +475,41 @@ func TestCheckJobExecutionRequirements(t *testing.T) {
 		{
 			job: &jobs.Job{
 				Id:           "J1",
-				Name:         "J1",
-				Dependencies: []string{"JP1"},
+				Name:         "NameJ1",
+				Dependencies: []string{"NameJP1"},
 			},
 			valid: true,
 		},
 		{
 			job: &jobs.Job{
 				Id:           "J2",
-				Name:         "J2",
-				Dependencies: []string{"JP2"},
+				Name:         "NameJ2",
+				Dependencies: []string{"NameJP2"},
 			},
 			valid: false,
 		},
 		{
 			job: &jobs.Job{
 				Id:           "J3",
-				Name:         "J3",
-				Dependencies: []string{"JP3"},
+				Name:         "NameJ3",
+				Dependencies: []string{"NameJP3"},
 			},
 			valid: false,
 		},
 		{
-			job:   &jobs.Job{Id: "J4", Name: "J4"},
+			job:   &jobs.Job{Id: "J4", Name: "NameJ4"},
 			valid: true,
 		},
 		{
-			job:   &jobs.Job{Id: "J5", Name: "J5"},
+			job:   &jobs.Job{Id: "J5", Name: "NameJ5"},
 			valid: false,
 		},
 		{
-			job:   &jobs.Job{Id: "J6", Name: "J6"},
+			job:   &jobs.Job{Id: "J6", Name: "NameJ6"},
 			valid: false,
 		},
 		{
-			job:   &jobs.Job{Id: "J7", Name: "J7"},
+			job:   &jobs.Job{Id: "J7", Name: "NameJ7"},
 			valid: false,
 		},
 	}
@@ -514,7 +517,7 @@ func TestCheckJobExecutionRequirements(t *testing.T) {
 	// Create Database
 	var database databases.Database = dbmock.NewDBMock()
 
-	// Add executed result definition to the database
+	// Add result definition to the database
 	database.AddResultDefinition(&resultDefinition)
 
 	for i, tt := range tests {
@@ -539,5 +542,51 @@ func TestCheckJobExecutionRequirements(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestRunAndUpdateStatus(t *testing.T) {
+
+	// Declare job
+	job := jobs.Job{
+		Id:   "J1",
+		Name: "NameJ1",
+	}
+
+	// Declare job results (local storage)
+	jobResults := map[string]results.ResultJob{
+		"NameJ1": {
+			Id:     "J1",
+			Status: results.Waiting,
+		},
+	}
+
+	// Declare result definitions
+	resultDefinition := results.ResultDefinition{
+		Id:         "RD-ID",
+		ResultJobs: maps.Values(jobResults),
+	}
+
+	// Create Executor
+	var executor executors.Executor = execmock.NewExecMock()
+
+	// We created an access control system to prevent co-occurrence into goroutines
+	mutex := &sync.RWMutex{}
+
+	// Create Database
+	var database databases.Database = dbmock.NewDBMock()
+
+	// Add result definition to the database
+	database.AddResultDefinition(&resultDefinition)
+
+	t.Run("test", func(t *testing.T) {
+		err := runAndUpdateStatus(&executor, &job, mutex, &jobResults, &database, resultDefinition.Id)
+
+		if err != nil {
+			t.Error("Unexpected error detected: " + err.Error())
+		} else if jobResults[job.Name].Status == results.Waiting {
+			t.Error("The status registered in the local storage has not been updated")
+		} else if rd, _ := database.GetResultDefinition(resultDefinition.Id); rd.ResultJobs[0].Status == results.Waiting {
+			t.Error("The status registered in the remote storage has not been updated")
+		}
+	})
 }

@@ -272,7 +272,7 @@ func executeJobs(nestedJobs *[][]jobs.Job, executor *executors.Executor, resultD
 func checkJobExecutionRequirements(job *jobs.Job, jobResults *map[string]results.ResultJob, database *databases.Database, resultDefinitionId string) (bool, error) {
 
 	// If the job is not pending execution, it is ignored.
-	pending := (*jobResults)[job.Id].Status == results.Waiting
+	pending := (*jobResults)[job.Name].Status == results.Waiting
 
 	// If the job must be cancelled, it is ignored.
 	cancelled := false
