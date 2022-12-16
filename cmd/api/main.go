@@ -12,9 +12,17 @@ import (
 	"dag/hector/golang/module/pkg/validators"
 	"log"
 	"net/http"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Read environment variables
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic(err)
+	}
+
 	// Create Executor
 	var executor executors.Executor = nomad.NewNomad()
 
