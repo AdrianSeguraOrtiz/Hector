@@ -7,6 +7,8 @@ import (
 	"dag/hector/golang/module/pkg/databases/dbmock"
 	"dag/hector/golang/module/pkg/executors"
 	"dag/hector/golang/module/pkg/executors/nomad"
+	"dag/hector/golang/module/pkg/filemanagers"
+	"dag/hector/golang/module/pkg/filemanagers/minio"
 	"dag/hector/golang/module/pkg/schedulers"
 	"dag/hector/golang/module/pkg/schedulers/topologicalgrouped"
 	"dag/hector/golang/module/pkg/validators"
@@ -23,8 +25,15 @@ func main() {
 		panic(err)
 	}
 
+	// Create FileManager
+	var fileManager filemanagers.FileManager
+	fileManager, err = minio.NewMinio()
+	if err != nil {
+		panic(err)
+	}
+
 	// Create Executor
-	var executor executors.Executor = nomad.NewNomad()
+	var executor executors.Executor = nomad.NewNomad(&fileManager)
 
 	// Create Scheduler
 	var scheduler schedulers.Scheduler = topologicalgrouped.NewTopologicalGrouped()

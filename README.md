@@ -52,7 +52,6 @@
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgments">Acknowledgments</a></li>
   </ol>
 </details>
 
@@ -103,6 +102,12 @@ sudo apt install golang-go
 
 <!-- USAGE EXAMPLES -->
 ## Usage
+
+In case of using a file manager, it will be necessary to consult the environment variables template, generate an .env with the necessary variables and compile the corresponding executable by means of the following command:
+
+```sh
+go build -o cmd/filemanager/ cmd/filemanager/main.go
+```
 
 1. Raise the api
 

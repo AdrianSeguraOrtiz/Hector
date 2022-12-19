@@ -13,3 +13,6 @@
 
 # Environment variables
 .env
+
+# Binary file
+cmd/filemanager/main

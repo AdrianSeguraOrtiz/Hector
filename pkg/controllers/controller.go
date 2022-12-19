@@ -110,6 +110,9 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 		return nil, taskValidatorErr
 	}
 
+	// We create a map to store the output files produced by each task
+	filesMap := make(map[string][]string)
+
 	// We build a two-dimensional vector to store the topologically ordered tasks with the necessary content for their definition.
 	var nestedJobs [][]jobs.Job
 
@@ -147,16 +150,34 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 				return nil, outputValidatorErr
 			}
 
-			// E. We create the definition task (job)
-			job := jobs.Job{
-				Id:           xid.New().String(),
-				Name:         taskName,
-				Image:        execComponent.ContainerImage,
-				Arguments:    append(definitionTask.Inputs, definitionTask.Outputs...),
-				Dependencies: specificationTask.Dependencies,
+			// E. Extract file type output parameter values and add to the map
+			var values []string
+			for _, output := range execComponent.Outputs {
+				if output.Type == "file" {
+					idxDefOutput := slices.IndexFunc(definitionTask.Outputs, func(do definitions.Parameter) bool { return do.Name == output.Name })
+					values = append(values, specification.Id+"/"+definition.Id+"/"+taskName+"/"+definitionTask.Outputs[idxDefOutput].Value.(string))
+				}
+			}
+			filesMap[taskName] = values
+
+			// F. Get required files (since we go through the tasks in topological order, we can extract the files from the map itself)
+			var requiredFiles []string
+			for _, depName := range specificationTask.Dependencies {
+				requiredFiles = append(requiredFiles, filesMap[depName]...)
 			}
 
-			// F. We add it to the group's task list
+			// G. We create the definition task (job)
+			job := jobs.Job{
+				Id:            xid.New().String(),
+				Name:          taskName,
+				Image:         execComponent.ContainerImage,
+				Arguments:     append(definitionTask.Inputs, definitionTask.Outputs...),
+				Dependencies:  specificationTask.Dependencies,
+				RequiredFiles: requiredFiles,
+				OutputFiles:   values,
+			}
+
+			// H. We add it to the group's task list
 			jobsGroup = append(jobsGroup, job)
 		}
 		// We add the group's tasks to the two-dimensional list

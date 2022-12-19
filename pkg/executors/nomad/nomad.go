@@ -3,9 +3,11 @@ package nomad
 import (
 	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/definitions"
+	"dag/hector/golang/module/pkg/filemanagers"
 	"dag/hector/golang/module/pkg/jobs"
 	"dag/hector/golang/module/pkg/results"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -13,13 +15,14 @@ import (
 )
 
 type Nomad struct {
-	Client *api.Client
+	Client      *api.Client
+	FileManager *filemanagers.FileManager
 }
 
-func NewNomad() *Nomad {
+func NewNomad(fileManager *filemanagers.FileManager) *Nomad {
 	cfg := api.DefaultConfig()
 	client, _ := api.NewClient(cfg)
-	return &Nomad{Client: client}
+	return &Nomad{Client: client, FileManager: fileManager}
 }
 
 func (no *Nomad) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
@@ -99,7 +102,7 @@ func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
 	nomad's own task from the Hector's own task pointer.
 	*/
 
-	// 1. Task
+	// 1. Main Task
 	args := argumentsToSlice(&job.Arguments)
 	nomadTask := &api.Task{
 		Name:   taskName,
@@ -111,14 +114,47 @@ func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
 		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
 
-	// 2. Task Group
-	nomadTaskGroup := &api.TaskGroup{
-		Name:          &taskGroupName,
-		Tasks:         []*api.Task{nomadTask},
+	// 2. Sidecar (Download and Upload)
+	var downloadPaths []string
+	for _, path := range job.RequiredFiles {
+		downloadPaths = append(downloadPaths, "--local-path", filepath.Base(path), "--remote-path", path)
+	}
+	downloadTask := &api.Task{
+		Name:   "download-task",
+		Driver: "raw_exec",
+		Config: map[string]interface{}{
+			"command": "/home/adrian/golang/Hector/cmd/filemanager/main",
+			"args":    append([]string{"download"}, downloadPaths...),
+		},
 		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
 
-	// 3. Job
+	fmt.Println(downloadTask.Config["args"])
+
+	var uploadPaths []string
+	for _, path := range job.OutputFiles {
+		uploadPaths = append(uploadPaths, "--local-path", filepath.Base(path), "--remote-path", path)
+	}
+	uploadTask := &api.Task{
+		Name:   "upload-task",
+		Driver: "raw_exec",
+		Config: map[string]interface{}{
+			"command": "/home/adrian/golang/Hector/cmd/filemanager/main",
+			"args":    append([]string{"upload"}, uploadPaths...),
+		},
+		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+	}
+
+	fmt.Println(uploadTask.Config["args"])
+
+	// 3. Task Group
+	nomadTaskGroup := &api.TaskGroup{
+		Name:          &taskGroupName,
+		Tasks:         []*api.Task{downloadTask, nomadTask, uploadTask},
+		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+	}
+
+	// 4. Job
 	nomadJob := &api.Job{
 		ID:          &job.Id,
 		Name:        &job.Name,

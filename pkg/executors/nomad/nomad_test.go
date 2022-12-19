@@ -3,6 +3,8 @@ package nomad
 import (
 	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/definitions"
+	"dag/hector/golang/module/pkg/filemanagers"
+	"dag/hector/golang/module/pkg/filemanagers/minio"
 	"dag/hector/golang/module/pkg/jobs"
 	"dag/hector/golang/module/pkg/results"
 	"fmt"
@@ -494,7 +496,12 @@ func TestExecuteJob(t *testing.T) {
 		},
 	}
 
-	nomad := NewNomad()
+	// Create FileManager
+	var fileManager filemanagers.FileManager
+	fileManager, _ = minio.NewMinio()
+
+	// Create Nomad
+	nomad := NewNomad(&fileManager)
 
 	for i, tt := range tests {
 
