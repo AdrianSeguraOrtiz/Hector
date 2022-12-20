@@ -5,17 +5,17 @@
     "inputs": [
         {
             "name": "input-file-1",
-            "type": "string"
+            "type": "file"
         },
         {
             "name": "input-file-2",
-            "type": "string"
+            "type": "file"
         }
     ],
     "outputs": [
         {
             "name": "output-file",
-            "type": "string"
+            "type": "file"
         }
     ],
     "containerDockerfile": "repo/data/hector/toy_components/concat_files/Dockerfile",

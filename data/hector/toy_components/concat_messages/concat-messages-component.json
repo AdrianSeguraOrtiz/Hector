@@ -15,7 +15,7 @@
     "outputs": [
         {
             "name": "output-file",
-            "type": "string"
+            "type": "file"
         }
     ],
     "containerDockerfile": "repo/data/hector/toy_components/concat_messages/Dockerfile",
