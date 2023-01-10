@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/databases"
 	"dag/hector/golang/module/pkg/definitions"
 	"dag/hector/golang/module/pkg/errors"
@@ -150,20 +151,30 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 				return nil, outputValidatorErr
 			}
 
-			// E. Extract file type output parameter values and add to the map
-			var values []string
+			// E. Get output files
+			var outputFiles []string
 			for _, output := range execComponent.Outputs {
 				if output.Type == "file" {
 					idxDefOutput := slices.IndexFunc(definitionTask.Outputs, func(do definitions.Parameter) bool { return do.Name == output.Name })
-					values = append(values, specification.Id+"/"+definition.Id+"/"+taskName+"/"+definitionTask.Outputs[idxDefOutput].Value.(string))
+					outputFiles = append(outputFiles, specification.Id+"/"+definition.Id+"/"+taskName+"/"+definitionTask.Outputs[idxDefOutput].Value.(string))
 				}
 			}
-			filesMap[taskName] = values
+			filesMap[taskName] = outputFiles
 
-			// F. Get required files (since we go through the tasks in topological order, we can extract the files from the map itself)
+			// F. Get required files
+			// Generated during execution (since we go through the tasks in topological order, we can extract the files from the map itself)
 			var requiredFiles []string
 			for _, depName := range specificationTask.Dependencies {
 				requiredFiles = append(requiredFiles, filesMap[depName]...)
+			}
+			// External files
+			for _, input := range execComponent.Inputs {
+				if input.Type == "file" {
+					idxDefInput := slices.IndexFunc(definitionTask.Inputs, func(di definitions.Parameter) bool { return di.Name == input.Name })
+					if fileBaseName := definitionTask.Inputs[idxDefInput].Value.(string); !pkg.Contains(requiredFiles, specification.Id+"/"+definition.Id+"/"+taskName+"/"+fileBaseName) {
+						requiredFiles = append(requiredFiles, fileBaseName)
+					}
+				}
 			}
 
 			// G. We create the definition task (job)
@@ -174,7 +185,7 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 				Arguments:     append(definitionTask.Inputs, definitionTask.Outputs...),
 				Dependencies:  specificationTask.Dependencies,
 				RequiredFiles: requiredFiles,
-				OutputFiles:   values,
+				OutputFiles:   outputFiles,
 			}
 
 			// H. We add it to the group's task list
