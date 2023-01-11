@@ -14,6 +14,7 @@ import (
 	"dag/hector/golang/module/pkg/validators"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/joho/godotenv"
 )
@@ -54,7 +55,9 @@ func main() {
 	}
 
 	// Raise the API
-	log.Fatal(http.ListenAndServe(":8080", api.Router))
+	host := os.Getenv("API_HOST")
+	port := os.Getenv("API_PORT")
+	log.Fatal(http.ListenAndServe(host+":"+port, api.Router))
 
 	// Set pending definitions to execute
 	pendingDefinitions, err := (*controller.Database).GetDefinitionsWithWaitings()
