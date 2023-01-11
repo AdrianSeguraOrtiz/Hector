@@ -24,16 +24,19 @@ func (i *arrayFlags) Set(value string) error {
 func main() {
 
 	// Parameters
+	var envFile string
 	var localPaths arrayFlags
 	var remotePaths arrayFlags
 
 	// First subcommand
 	downloadCmd := flag.NewFlagSet("download", flag.ExitOnError)
+	downloadCmd.StringVar(&envFile, "env", ".env", "env file path")
 	downloadCmd.Var(&localPaths, "local-path", "local paths")
 	downloadCmd.Var(&remotePaths, "remote-path", "remote paths")
 
 	// Second subcommand
 	uploadCmd := flag.NewFlagSet("upload", flag.ExitOnError)
+	uploadCmd.StringVar(&envFile, "env", ".env", "env file path")
 	uploadCmd.Var(&localPaths, "local-path", "local paths")
 	uploadCmd.Var(&remotePaths, "remote-path", "remote paths")
 
@@ -43,8 +46,24 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Load variables
+	switch os.Args[1] {
+	case "download":
+		downloadCmd.Parse(os.Args[2:])
+	case "upload":
+		uploadCmd.Parse(os.Args[2:])
+	default:
+		fmt.Println("expected 'download' or 'upload' subcommands")
+		os.Exit(1)
+	}
+
+	// Verify the feasibility of route pairing
+	if len(localPaths) != len(remotePaths) {
+		panic("the number of remote and local routes must be the same")
+	}
+
 	// Read environment variables
-	err := godotenv.Load(".env")
+	err := godotenv.Load(envFile)
 	if err != nil {
 		panic(err)
 	}
@@ -56,32 +75,22 @@ func main() {
 		panic(err)
 	}
 
+	// Perform files download|upload
 	switch os.Args[1] {
-
 	case "download":
-		downloadCmd.Parse(os.Args[2:])
-		if len(localPaths) != len(remotePaths) {
-			panic("the number of remote and local routes must be the same")
-		}
 		for i := range localPaths {
 			err := fileManager.DownloadFile(remotePaths[i], localPaths[i])
 			if err != nil {
 				panic(err)
 			}
 		}
-
 	case "upload":
-		uploadCmd.Parse(os.Args[2:])
-		if len(localPaths) != len(remotePaths) {
-			panic("the number of remote and local routes must be the same")
-		}
 		for i := range localPaths {
 			err := fileManager.UploadFile(localPaths[i], remotePaths[i])
 			if err != nil {
 				panic(err)
 			}
 		}
-
 	default:
 		fmt.Println("expected 'download' or 'upload' subcommands")
 		os.Exit(1)
