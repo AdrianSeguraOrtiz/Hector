@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	minioSDK "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -22,7 +23,10 @@ func NewMinio() (*Minio, error) {
 	endpoint := os.Getenv("MINIO_ENDPOINT")
 	accessKeyID := os.Getenv("MINIO_ACCESS_KEY_ID")
 	secretAccessKey := os.Getenv("MINIO_SECRET_ACCESS_KEY")
-	useSSL := true
+	useSSL, err := strconv.ParseBool(os.Getenv("MINIO_USE_SSL"))
+	if err != nil {
+		return nil, err
+	}
 
 	// Initialize minio client object.
 	minioClient, err := minioSDK.New(endpoint, &minioSDK.Options{
