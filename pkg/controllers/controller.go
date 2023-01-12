@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/databases"
 	"dag/hector/golang/module/pkg/definitions"
 	"dag/hector/golang/module/pkg/errors"
@@ -151,12 +150,15 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 				return nil, outputValidatorErr
 			}
 
-			// E. Get output files
+			// E. Get output files and specify its writing inside the data folder (used by default on the volume)
 			var outputFiles []string
+			specificParentFolder := specification.Id + "/" + definition.Name + " (" + definition.Id + ")/" + taskName + "/"
 			for _, output := range execComponent.Outputs {
 				if output.Type == "file" {
 					idxDefOutput := slices.IndexFunc(definitionTask.Outputs, func(do definitions.Parameter) bool { return do.Name == output.Name })
-					outputFiles = append(outputFiles, specification.Id+"/"+definition.Id+"/"+taskName+"/"+definitionTask.Outputs[idxDefOutput].Value.(string))
+					fileBaseName := definitionTask.Outputs[idxDefOutput].Value.(string)
+					definitionTask.Outputs[idxDefOutput].Value = "./data/" + fileBaseName
+					outputFiles = append(outputFiles, specificParentFolder+fileBaseName)
 				}
 			}
 			filesMap[taskName] = outputFiles
@@ -167,13 +169,18 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 			for _, depName := range specificationTask.Dependencies {
 				requiredFiles = append(requiredFiles, filesMap[depName]...)
 			}
-			// External files
+			// Specify its location inside the data folder (used by default on the volume)
 			for _, input := range execComponent.Inputs {
 				if input.Type == "file" {
 					idxDefInput := slices.IndexFunc(definitionTask.Inputs, func(di definitions.Parameter) bool { return di.Name == input.Name })
-					if fileBaseName := definitionTask.Inputs[idxDefInput].Value.(string); !pkg.Contains(requiredFiles, specification.Id+"/"+definition.Id+"/"+taskName+"/"+fileBaseName) {
-						requiredFiles = append(requiredFiles, fileBaseName)
-					}
+					fileBaseName := definitionTask.Inputs[idxDefInput].Value.(string)
+					definitionTask.Inputs[idxDefInput].Value = "./data/" + fileBaseName
+					//TODO: Check external files to find in minio
+					/*
+						if isExternal
+							requiredFiles = append(requiredFiles, fileBaseName)
+						}
+					*/
 				}
 			}
 

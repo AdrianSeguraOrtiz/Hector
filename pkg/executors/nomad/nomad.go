@@ -7,7 +7,9 @@ import (
 	"dag/hector/golang/module/pkg/jobs"
 	"dag/hector/golang/module/pkg/results"
 	"fmt"
+	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -73,10 +75,23 @@ func (no *Nomad) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	}
 
 	// Get logs from our allocation
-	logs, err := getLogsFromAllocation(alloc, status, taskName, no.Client.AllocFS().Logs)
+	// 1. Download sidecar
+	downLogs, err := getLogsFromAllocation(alloc, status, "download-task", no.Client.AllocFS().Logs)
 	if err != nil {
 		return nil, err
 	}
+	// 2. Main task
+	mainLogs, err := getLogsFromAllocation(alloc, status, taskName, no.Client.AllocFS().Logs)
+	if err != nil {
+		return nil, err
+	}
+	// 3. Upload sidecar
+	upLogs, err := getLogsFromAllocation(alloc, status, "upload-task", no.Client.AllocFS().Logs)
+	if err != nil {
+		return nil, err
+	}
+	// 4. Join logs
+	logs := downLogs + mainLogs + upLogs
 
 	// We return the result job
 	return &results.ResultJob{Id: job.Id, Name: job.Name, Logs: warnings + logs, Status: status}, nil
@@ -108,44 +123,73 @@ func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
 		Name:   taskName,
 		Driver: "docker",
 		Config: map[string]interface{}{
-			"image": job.Image,
-			"args":  args,
+			"image":   job.Image,
+			"args":    args,
+			"volumes": []string{"../alloc:/usr/local/src/data"},
 		},
 		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
 
 	// 2. Sidecar (Download and Upload)
+	envData := "MINIO_ENDPOINT=" + os.Getenv("MINIO_ENDPOINT") + "\n" +
+		"MINIO_ACCESS_KEY_ID=" + os.Getenv("MINIO_ACCESS_KEY_ID") + "\n" +
+		"MINIO_SECRET_ACCESS_KEY=" + os.Getenv("MINIO_SECRET_ACCESS_KEY") + "\n" +
+		"MINIO_USE_SSL=" + os.Getenv("MINIO_USE_SSL") + "\n" +
+		"MINIO_BUCKET_NAME=" + os.Getenv("MINIO_BUCKET_NAME")
+	envFile := "secrets/file.env"
+	_, b, _, _ := runtime.Caller(0)
+	basepath, _ := filepath.Abs(filepath.Dir(b) + "../../../../")
+	sidecarMain := basepath + "/cmd/filemanager/main"
+
 	var downloadPaths []string
 	for _, path := range job.RequiredFiles {
-		downloadPaths = append(downloadPaths, "--local-path", filepath.Base(path), "--remote-path", path)
+		downloadPaths = append(downloadPaths, "--local-path", "../alloc/"+filepath.Base(path), "--remote-path", path)
 	}
 	downloadTask := &api.Task{
-		Name:   "download-task",
+		Name: "download-task",
+		Lifecycle: &api.TaskLifecycle{
+			Hook:    api.TaskLifecycleHookPrestart,
+			Sidecar: false,
+		},
+		Templates: []*api.Template{
+			{
+				EmbeddedTmpl: &envData,
+				DestPath:     &envFile,
+				Envvars:      pkg.Ptr(true),
+			},
+		},
 		Driver: "raw_exec",
 		Config: map[string]interface{}{
-			"command": "/home/adrian/golang/Hector/cmd/filemanager/main",
-			"args":    append([]string{"download"}, downloadPaths...),
+			"command": sidecarMain,
+			"args":    append([]string{"download", "--env", envFile}, downloadPaths...),
 		},
 		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
-
-	fmt.Println(downloadTask.Config["args"])
 
 	var uploadPaths []string
 	for _, path := range job.OutputFiles {
-		uploadPaths = append(uploadPaths, "--local-path", filepath.Base(path), "--remote-path", path)
+		uploadPaths = append(uploadPaths, "--local-path", "../alloc/"+filepath.Base(path), "--remote-path", path)
 	}
 	uploadTask := &api.Task{
-		Name:   "upload-task",
+		Name: "upload-task",
+		Lifecycle: &api.TaskLifecycle{
+			Hook:    api.TaskLifecycleHookPoststop,
+			Sidecar: false,
+		},
+		Templates: []*api.Template{
+			{
+				EmbeddedTmpl: &envData,
+				DestPath:     &envFile,
+				Envvars:      pkg.Ptr(true),
+			},
+		},
 		Driver: "raw_exec",
 		Config: map[string]interface{}{
-			"command": "/home/adrian/golang/Hector/cmd/filemanager/main",
-			"args":    append([]string{"upload"}, uploadPaths...),
+			"command": sidecarMain,
+			"args":    append([]string{"upload", "--env", envFile}, uploadPaths...),
 		},
 		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
-
-	fmt.Println(uploadTask.Config["args"])
 
 	// 3. Task Group
 	nomadTaskGroup := &api.TaskGroup{
@@ -254,7 +298,9 @@ func getLogsFromAllocation(alloc *api.Allocation, status results.Status, taskNam
 
 	// Extract the contents of the logs
 	case frame := <-frames:
-		logs += string(frame.Data)
+		if frame != nil {
+			logs += string(frame.Data)
+		}
 	}
 
 	return logs, nil

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/joho/godotenv"
 )
@@ -22,6 +23,12 @@ func (i *arrayFlags) Set(value string) error {
 }
 
 func main() {
+
+	// Get working directory
+	workingDir, wdErr := os.Getwd()
+	if wdErr != nil {
+		panic(wdErr)
+	}
 
 	// Parameters
 	var envFile string
@@ -79,14 +86,22 @@ func main() {
 	switch os.Args[1] {
 	case "download":
 		for i := range localPaths {
-			err := fileManager.DownloadFile(remotePaths[i], localPaths[i])
+			localFile, absErr := filepath.Abs(workingDir + "/" + localPaths[i])
+			if absErr != nil {
+				panic(err)
+			}
+			err := fileManager.DownloadFile(remotePaths[i], localFile)
 			if err != nil {
 				panic(err)
 			}
 		}
 	case "upload":
 		for i := range localPaths {
-			err := fileManager.UploadFile(localPaths[i], remotePaths[i])
+			localFile, absErr := filepath.Abs(workingDir + "/" + localPaths[i])
+			if absErr != nil {
+				panic(err)
+			}
+			err := fileManager.UploadFile(localFile, remotePaths[i])
 			if err != nil {
 				panic(err)
 			}

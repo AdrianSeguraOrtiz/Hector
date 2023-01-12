@@ -12,10 +12,10 @@ def count_letters(
 
     f = open(input_file, "r")
     message = f.read()
-    num_letters = message.count()
+    num_letters = len(message)
     f.close()
 
-    result = "The number of letters is: " + num_letters
+    result = "The number of letters is: " + str(num_letters)
     print(result)
 
     Path(output_file).parent.mkdir(parents=True, exist_ok=True)
