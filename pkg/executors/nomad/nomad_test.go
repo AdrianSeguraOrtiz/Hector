@@ -9,13 +9,16 @@ import (
 	"dag/hector/golang/module/pkg/results"
 	"fmt"
 	"math"
+	"path/filepath"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
+	"github.com/joho/godotenv"
 )
 
 func TestArgumentsToSlice(t *testing.T) {
@@ -83,6 +86,8 @@ func TestArgumentsToSlice(t *testing.T) {
 }
 
 func TestBuildJob(t *testing.T) {
+	_, b, _, _ := runtime.Caller(0)
+	basepath, _ := filepath.Abs(filepath.Dir(b) + "../../../../")
 	var tests = []struct {
 		job      *jobs.Job
 		nomadJob *api.Job
@@ -103,11 +108,52 @@ func TestBuildJob(t *testing.T) {
 						Name: pkg.Ptr("Task-Group-Job-Id-1"),
 						Tasks: []*api.Task{
 							{
+								Name: "download-task",
+								Lifecycle: &api.TaskLifecycle{
+									Hook:    api.TaskLifecycleHookPrestart,
+									Sidecar: false,
+								},
+								Templates: []*api.Template{
+									{
+										EmbeddedTmpl: pkg.Ptr("MINIO_ENDPOINT=\nMINIO_ACCESS_KEY_ID=\nMINIO_SECRET_ACCESS_KEY=\nMINIO_USE_SSL=\nMINIO_BUCKET_NAME="),
+										DestPath:     pkg.Ptr("secrets/file.env"),
+										Envvars:      pkg.Ptr(true),
+									},
+								},
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": basepath + "/cmd/filemanager/main",
+									"args":    []string{"download", "--env", "secrets/file.env"},
+								},
+								RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+							},
+							{
 								Name:   "Task-Job-Id-1",
 								Driver: "docker",
 								Config: map[string]interface{}{
-									"image": "image-name-1",
-									"args":  []string{},
+									"image":   "image-name-1",
+									"args":    []string{},
+									"volumes": []string{"../alloc:/usr/local/src/data"},
+								},
+								RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+							},
+							{
+								Name: "upload-task",
+								Lifecycle: &api.TaskLifecycle{
+									Hook:    api.TaskLifecycleHookPoststop,
+									Sidecar: false,
+								},
+								Templates: []*api.Template{
+									{
+										EmbeddedTmpl: pkg.Ptr("MINIO_ENDPOINT=\nMINIO_ACCESS_KEY_ID=\nMINIO_SECRET_ACCESS_KEY=\nMINIO_USE_SSL=\nMINIO_BUCKET_NAME="),
+										DestPath:     pkg.Ptr("secrets/file.env"),
+										Envvars:      pkg.Ptr(true),
+									},
+								},
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": basepath + "/cmd/filemanager/main",
+									"args":    []string{"upload", "--env", "secrets/file.env"},
 								},
 								RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 							},
@@ -148,11 +194,130 @@ func TestBuildJob(t *testing.T) {
 						Name: pkg.Ptr("Task-Group-Job-Id-2"),
 						Tasks: []*api.Task{
 							{
+								Name: "download-task",
+								Lifecycle: &api.TaskLifecycle{
+									Hook:    api.TaskLifecycleHookPrestart,
+									Sidecar: false,
+								},
+								Templates: []*api.Template{
+									{
+										EmbeddedTmpl: pkg.Ptr("MINIO_ENDPOINT=\nMINIO_ACCESS_KEY_ID=\nMINIO_SECRET_ACCESS_KEY=\nMINIO_USE_SSL=\nMINIO_BUCKET_NAME="),
+										DestPath:     pkg.Ptr("secrets/file.env"),
+										Envvars:      pkg.Ptr(true),
+									},
+								},
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": basepath + "/cmd/filemanager/main",
+									"args":    []string{"download", "--env", "secrets/file.env"},
+								},
+								RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+							},
+							{
 								Name:   "Task-Job-Id-2",
 								Driver: "docker",
 								Config: map[string]interface{}{
-									"image": "image-name-2",
-									"args":  []string{"--name-1", "value-1", "--name-2", "2", "--name-3", "true"},
+									"image":   "image-name-2",
+									"args":    []string{"--name-1", "value-1", "--name-2", "2", "--name-3", "true"},
+									"volumes": []string{"../alloc:/usr/local/src/data"},
+								},
+								RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+							},
+							{
+								Name: "upload-task",
+								Lifecycle: &api.TaskLifecycle{
+									Hook:    api.TaskLifecycleHookPoststop,
+									Sidecar: false,
+								},
+								Templates: []*api.Template{
+									{
+										EmbeddedTmpl: pkg.Ptr("MINIO_ENDPOINT=\nMINIO_ACCESS_KEY_ID=\nMINIO_SECRET_ACCESS_KEY=\nMINIO_USE_SSL=\nMINIO_BUCKET_NAME="),
+										DestPath:     pkg.Ptr("secrets/file.env"),
+										Envvars:      pkg.Ptr(true),
+									},
+								},
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": basepath + "/cmd/filemanager/main",
+									"args":    []string{"upload", "--env", "secrets/file.env"},
+								},
+								RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+							},
+						},
+						RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+					},
+				},
+				Reschedule: &api.ReschedulePolicy{Attempts: pkg.Ptr(0)},
+			},
+		},
+		{
+			job: &jobs.Job{
+				Id:            "Job-Id-3",
+				Name:          "Job Name 3",
+				Image:         "image-name-3",
+				RequiredFiles: []string{"specific-parent-folder/file-A.txt", "specific-parent-folder/file-B.txt"},
+				OutputFiles:   []string{"specific-parent-folder/file-C.txt", "specific-parent-folder/file-D.txt"},
+			},
+			nomadJob: &api.Job{
+				ID:          pkg.Ptr("Job-Id-3"),
+				Name:        pkg.Ptr("Job Name 3"),
+				Type:        pkg.Ptr("batch"),
+				Datacenters: []string{"dc1"},
+				TaskGroups: []*api.TaskGroup{
+					{
+						Name: pkg.Ptr("Task-Group-Job-Id-3"),
+						Tasks: []*api.Task{
+							{
+								Name: "download-task",
+								Lifecycle: &api.TaskLifecycle{
+									Hook:    api.TaskLifecycleHookPrestart,
+									Sidecar: false,
+								},
+								Templates: []*api.Template{
+									{
+										EmbeddedTmpl: pkg.Ptr("MINIO_ENDPOINT=\nMINIO_ACCESS_KEY_ID=\nMINIO_SECRET_ACCESS_KEY=\nMINIO_USE_SSL=\nMINIO_BUCKET_NAME="),
+										DestPath:     pkg.Ptr("secrets/file.env"),
+										Envvars:      pkg.Ptr(true),
+									},
+								},
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": basepath + "/cmd/filemanager/main",
+									"args": []string{"download", "--env", "secrets/file.env",
+										"--local-path", "../alloc/file-A.txt", "--remote-path", "specific-parent-folder/file-A.txt",
+										"--local-path", "../alloc/file-B.txt", "--remote-path", "specific-parent-folder/file-B.txt"},
+								},
+								RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+							},
+							{
+								Name:   "Task-Job-Id-3",
+								Driver: "docker",
+								Config: map[string]interface{}{
+									"image":   "image-name-3",
+									"args":    []string{},
+									"volumes": []string{"../alloc:/usr/local/src/data"},
+								},
+								RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+							},
+							{
+								Name: "upload-task",
+								Lifecycle: &api.TaskLifecycle{
+									Hook:    api.TaskLifecycleHookPoststop,
+									Sidecar: false,
+								},
+								Templates: []*api.Template{
+									{
+										EmbeddedTmpl: pkg.Ptr("MINIO_ENDPOINT=\nMINIO_ACCESS_KEY_ID=\nMINIO_SECRET_ACCESS_KEY=\nMINIO_USE_SSL=\nMINIO_BUCKET_NAME="),
+										DestPath:     pkg.Ptr("secrets/file.env"),
+										Envvars:      pkg.Ptr(true),
+									},
+								},
+								Driver: "raw_exec",
+								Config: map[string]interface{}{
+									"command": basepath + "/cmd/filemanager/main",
+									"args": []string{"upload", "--env", "secrets/file.env",
+										"--local-path", "../alloc/file-C.txt", "--remote-path", "specific-parent-folder/file-C.txt",
+										"--local-path", "../alloc/file-D.txt", "--remote-path", "specific-parent-folder/file-D.txt"},
 								},
 								RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 							},
@@ -406,11 +571,12 @@ func TestGetLogsFromAllocation(t *testing.T) {
 			case "stderr":
 				log = "A task error has occurred"
 			}
-			frames <- &api.StreamFrame{Data: []byte(log)}
 
 			errors := make(chan error, 1)
 			if tt.err {
 				errors <- fmt.Errorf("Logs could not be extracted")
+			} else {
+				frames <- &api.StreamFrame{Data: []byte(log)}
 			}
 
 			return frames, errors
@@ -494,6 +660,12 @@ func TestExecuteJob(t *testing.T) {
 			logs:   "No such option: --bad-name",
 			status: results.Error,
 		},
+	}
+
+	// Read environment variables
+	err := godotenv.Load("../../../.env")
+	if err != nil {
+		panic(err)
 	}
 
 	// Create FileManager
