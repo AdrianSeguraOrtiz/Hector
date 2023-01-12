@@ -1,3 +1,4 @@
+from pathlib import Path
 import typer
 
 def count_letters(
@@ -17,6 +18,7 @@ def count_letters(
     result = "The number of letters is: " + num_letters
     print(result)
 
+    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
     f = open(output_file, "a")
     f.write(result)
     f.close()
