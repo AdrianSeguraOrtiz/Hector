@@ -10,11 +10,19 @@ import (
 
 type ExecMock struct{}
 
+/**
+NewExecMock function creates a new instance of the ExecMock type. It
+returns a pointer to the constructed variable.
+*/
 func NewExecMock() *ExecMock {
 	return &ExecMock{}
 }
 
-// This function simulates the definition of a job.
+/**
+ExecuteJob function simulates the execution of a job. It takes as input the pointer
+of a given Job. It provides as output a pointer to the generated ResultJob and an
+error variable in charge of notifying any problem.
+*/
 func (em *ExecMock) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 
 	// We print the initialization message and display the job information

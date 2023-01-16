@@ -27,7 +27,11 @@ type Controller struct {
 	Validator *validators.Validator
 }
 
-// This function is responsible for the complete execution of a given definition.
+/**
+Invoke function is responsible for the complete execution of a given definition. Takes as input
+the pointer to a Definition variable. Returns the pointer to a ResultDefinition variable and an
+error variable to report any problems.
+*/
 func (c *Controller) Invoke(definition *definitions.Definition) (*results.ResultDefinition, error) {
 
 	// Get jobs in topological order thanks to the scheduler while simultaneously validating the tasks
@@ -38,27 +42,30 @@ func (c *Controller) Invoke(definition *definitions.Definition) (*results.Result
 	}
 
 	// Get result definition or create a default one if it doesn't exist
-	resultDefinition, err := getOrDefaultResultDefinition(definition, c.Database, &nestedJobs)
+	resultDefinition, err := getOrDefaultResultDefinition(definition, c.Database, nestedJobs)
 	if err != nil {
 		return nil, fmt.Errorf("error getting result definition %s", err.Error())
 	}
 
 	// Execute jobs
-	resultDefinition.ResultJobs, err = executeJobs(&nestedJobs, c.Executor, resultDefinition, c.Database)
+	resultJobs, err := executeJobs(nestedJobs, c.Executor, resultDefinition, c.Database)
 	if err != nil {
 		return nil, fmt.Errorf("error during execution %s", err.Error())
 	}
+	resultDefinition.ResultJobs = *resultJobs
 
 	// We return the pointer to the constructed result definition
 	return resultDefinition, nil
 }
 
 /**
-This function is responsible for extracting the jobs (minimum units of information for an execution)
+getJobs function is responsible for extracting the jobs (minimum units of information for an execution)
 in the order established by the scheduler. In addition, during the process it is in charge of validating
-the consistency between the definition and the specification and components.
+the consistency between the definition and the specification and components. It takes as input the pointer
+of a Definition variable, the pointer of a Database variable and the pointer of a Validator variable. Finally,
+it returns the pointer to a two-dimensional array of Jobs and an error variable to notify of any problem.
 */
-func getJobs(definition *definitions.Definition, database *databases.Database, validator *validators.Validator) ([][]jobs.Job, error) {
+func getJobs(definition *definitions.Definition, database *databases.Database, validator *validators.Validator) (*[][]jobs.Job, error) {
 
 	// Obtain specification and planning, and validate the concordance between their tasks with respect to those recorded in the definition.
 	specification, planning, err := getAndCheckSpecPlanning(definition, database, validator)
@@ -91,12 +98,15 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 		nestedJobs = append(nestedJobs, jobsGroup)
 	}
 
-	return nestedJobs, nil
+	return &nestedJobs, nil
 }
 
 /**
-This function is responsible for obtaining the specification and planning associated with
-a definition and validating the concordance between its tasks and those recorded in the definition.
+getAndCheckSpecPlanning function is responsible for obtaining the specification and planning associated with
+a definition and validating the concordance between its tasks and those recorded in the definition. It takes
+as input the pointer of a Definition variable, the pointer of a Database variable and the pointer of a
+Validator variable. Returns the specification pointer, the pointer to the two-dimensional array representing
+the planning and an error variable to report any problems.
 */
 func getAndCheckSpecPlanning(definition *definitions.Definition, database *databases.Database, validator *validators.Validator) (*specifications.Specification, *[][]string, error) {
 
@@ -120,9 +130,11 @@ func getAndCheckSpecPlanning(definition *definitions.Definition, database *datab
 }
 
 /**
-This function is responsible for constructing the job associated with the specified task as
-well as validating the consistency between the parameters of the definition with respect to
-what is established in the specification and components.
+getAndCheckJob function is responsible for constructing the job associated with the specified task as
+well as validating the consistency between the parameters of the definition with respect to what is
+established in the specification and components. It takes as input the pointer of a Definition variable,
+the task name, the pointer of a Specification variable, the pointer of a Database variable and the pointer of a
+Validator variable. Returns the pointer to the constructed Job and an error variable to report any problems.
 */
 func getAndCheckJob(definition *definitions.Definition, taskName string, specification *specifications.Specification, database *databases.Database, validator *validators.Validator) (*jobs.Job, error) {
 
@@ -164,9 +176,12 @@ func getAndCheckJob(definition *definitions.Definition, taskName string, specifi
 }
 
 /**
-This function is responsible for downloading the execution result recorded in the database
-for the specified definition. In case it has not been executed before, it will not find
-any result in the database and will create a new one with the default values.
+getOrDefaultResultDefinition function is responsible for downloading the execution result
+recorded in the database for the specified definition. In case it has not been executed
+before, it will not find any result in the database and will create a new one with the
+default values. It takes as input the pointer of a Definition variable, the pointer of a
+Database variable and the pointer of set of jobs in topological order. Returns the pointer
+to the RestultDefinition variable and an error variable to report any problems.
 */
 func getOrDefaultResultDefinition(definition *definitions.Definition, database *databases.Database, nestedJobs *[][]jobs.Job) (*results.ResultDefinition, error) {
 
@@ -212,11 +227,14 @@ func getOrDefaultResultDefinition(definition *definitions.Definition, database *
 }
 
 /**
-This function is responsible for executing the jobs in the order established in the
-two-dimensional list. In addition, it stores real-time information in the database
-in order to facilitate the resolution of cuts during execution.
+executeJobs function is responsible for executing the jobs in the order established in the
+two-dimensional list. In addition, it stores real-time information in the database in order
+to facilitate the resolution of cuts during execution. It takes as input the pointer of the
+Jobs set, the pointer of an Executor variable, the pointer of a ResultDefinition variable and
+the pointer of a Database variable. It returns the pointer to an array of ResultJob and an
+error variable to report any problems.
 */
-func executeJobs(nestedJobs *[][]jobs.Job, executor *executors.Executor, resultDefinition *results.ResultDefinition, database *databases.Database) ([]results.ResultJob, error) {
+func executeJobs(nestedJobs *[][]jobs.Job, executor *executors.Executor, resultDefinition *results.ResultDefinition, database *databases.Database) (*[]results.ResultJob, error) {
 
 	// We create a map for storing the results of each job (local storage)
 	jobResults := make(map[string]results.ResultJob)
@@ -265,10 +283,18 @@ func executeJobs(nestedJobs *[][]jobs.Job, executor *executors.Executor, resultD
 		}
 	}
 
-	return maps.Values(jobResults), nil
+	res := maps.Values(jobResults)
+	return &res, nil
 }
 
-// This function checks that the job is pending execution and that none of its dependencies have been cancelled.
+/**
+checkJobExecutionRequirements function checks that the job is pending execution and
+that none of its dependencies have been cancelled. To do so, it takes as input the
+pointer to a Job variable, the pointer to a ResultJob map, a pointer to a Database
+variable and the id of the ResultDefinition. In the output it provides a boolean value
+and an error variable to report any problems.
+*/
+
 func checkJobExecutionRequirements(job *jobs.Job, jobResults *map[string]results.ResultJob, database *databases.Database, resultDefinitionId string) (bool, error) {
 
 	// If the job is not pending execution, it is ignored.
@@ -307,8 +333,11 @@ func checkJobExecutionRequirements(job *jobs.Job, jobResults *map[string]results
 }
 
 /**
-This function is responsible for calling the executor to run the job and then
-update its status in the local variable and in the remote database.
+runAndUpdateStatus function is responsible for calling the executor to run the job and then
+update its status in the local variable and in the remote database. It takes as input the pointer
+of an Executor variable, the pointer to a Job variable, the pointer to a sync.RWMutex variable, the
+pointer to a ResultJob map, a pointer to a Database variable and the id of the ResultDefinition.
+In the output it provides an error variable to report any problems.
 */
 func runAndUpdateStatus(executor *executors.Executor, job *jobs.Job, mutex *sync.RWMutex, jobResults *map[string]results.ResultJob, database *databases.Database, resultDefinitionId string) error {
 

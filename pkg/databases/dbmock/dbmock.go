@@ -20,14 +20,21 @@ type DBMock struct {
 	ResultDefinitionStructs  []results.ResultDefinition
 }
 
-// We create a specific constructor for our problem
+/**
+NewDBMock function creates a new instance of the DBMock type. It returns the pointer
+to the constructed variable.
+*/
 func NewDBMock() *DBMock {
 	db := DBMock{}
 	db.PlanningOfSpecifications = make(map[string][][]string)
 	return &db
 }
 
-// Performs a query to extract a component given its identifier
+/**
+GetComponent function extracts a concrete Component given its id. It takes as input
+the identifier of the Component. It returns the pointer of the Component extracted
+from the database and an error variable in charge of notifying any problem.
+*/
 func (dbm *DBMock) GetComponent(id string) (*components.Component, error) {
 
 	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == id })
@@ -38,7 +45,11 @@ func (dbm *DBMock) GetComponent(id string) (*components.Component, error) {
 	return &component, nil
 }
 
-// Performs a query to extract a specification given its identifier
+/**
+GetSpecification function extracts a concrete Specification given its id. It takes as input
+the identifier of the Specification. It returns the pointer of the Specification extracted
+from the database and an error variable in charge of notifying any problem.
+*/
 func (dbm *DBMock) GetSpecification(id string) (*specifications.Specification, error) {
 
 	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == id })
@@ -49,7 +60,11 @@ func (dbm *DBMock) GetSpecification(id string) (*specifications.Specification, e
 	return &specification, nil
 }
 
-// Performs a query to extract the planning of a specification given its identifier
+/**
+GetPlanning function extracts a concrete Planning given its id. It takes as input
+the identifier of the Planning. It returns the pointer of the Planning extracted
+from the database and an error variable in charge of notifying any problem.
+*/
 func (dbm *DBMock) GetPlanning(id string) (*[][]string, error) {
 
 	planning := dbm.PlanningOfSpecifications[id]
@@ -59,7 +74,11 @@ func (dbm *DBMock) GetPlanning(id string) (*[][]string, error) {
 	return &planning, nil
 }
 
-// Performs a query to extract a definition given its identifier
+/**
+GetDefinition function extracts a concrete Definition given its id. It takes as input
+the identifier of the Definition. It returns the pointer of the Definition extracted
+from the database and an error variable in charge of notifying any problem.
+*/
 func (dbm *DBMock) GetDefinition(id string) (*definitions.Definition, error) {
 
 	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == id })
@@ -70,7 +89,11 @@ func (dbm *DBMock) GetDefinition(id string) (*definitions.Definition, error) {
 	return &definition, nil
 }
 
-// Performs a query to extract a result definition given its identifier
+/**
+GetResultDefinition function extracts a concrete ResultDefinition given its id. It takes as input
+the identifier of the ResultDefinition. It returns the pointer of the ResultDefinition extracted
+from the database and an error variable in charge of notifying any problem.
+*/
 func (dbm *DBMock) GetResultDefinition(id string) (*results.ResultDefinition, error) {
 
 	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == id })
@@ -81,7 +104,11 @@ func (dbm *DBMock) GetResultDefinition(id string) (*results.ResultDefinition, er
 	return &resultDefinition, nil
 }
 
-// Insert component in database
+/**
+AddComponent function inserts a given Component into the database. It takes as input
+the pointer of the Component to be registered. It provides as output an error variable
+in charge of notifying any problem.
+*/
 func (dbm *DBMock) AddComponent(component *components.Component) error {
 
 	idx := slices.IndexFunc(dbm.ComponentStructs, func(c components.Component) bool { return c.Id == component.Id })
@@ -92,7 +119,11 @@ func (dbm *DBMock) AddComponent(component *components.Component) error {
 	return nil
 }
 
-// Insert specification in database
+/**
+AddSpecification function inserts a given Specification into the database. It takes as input
+the pointer of the Specification to be registered. It provides as output an error variable
+in charge of notifying any problem.
+*/
 func (dbm *DBMock) AddSpecification(specification *specifications.Specification) error {
 
 	idx := slices.IndexFunc(dbm.SpecificationStructs, func(s specifications.Specification) bool { return s.Id == specification.Id })
@@ -103,7 +134,11 @@ func (dbm *DBMock) AddSpecification(specification *specifications.Specification)
 	return nil
 }
 
-// Insert planning in database
+/**
+AddPlanning function inserts a given Planning into the database. It takes as input
+the pointer of the Planning to be registered. It provides as output an error variable
+in charge of notifying any problem.
+*/
 func (dbm *DBMock) AddPlanning(planning *[][]string, specificationId string) error {
 
 	if _, exists := dbm.PlanningOfSpecifications[specificationId]; exists {
@@ -113,7 +148,11 @@ func (dbm *DBMock) AddPlanning(planning *[][]string, specificationId string) err
 	return nil
 }
 
-// Insert definition in database
+/**
+AddDefinition function inserts a given Definition into the database. It takes as input
+the pointer of the Definition to be registered. It provides as output an error variable
+in charge of notifying any problem.
+*/
 func (dbm *DBMock) AddDefinition(definition *definitions.Definition) error {
 
 	idx := slices.IndexFunc(dbm.DefinitionStructs, func(d definitions.Definition) bool { return d.Id == definition.Id })
@@ -124,7 +163,11 @@ func (dbm *DBMock) AddDefinition(definition *definitions.Definition) error {
 	return nil
 }
 
-// Insert result definition in database
+/**
+AddResultDefinition function inserts a given ResultDefinition into the database. It takes as input
+the pointer of the ResultDefinition to be registered. It provides as output an error variable
+in charge of notifying any problem.
+*/
 func (dbm *DBMock) AddResultDefinition(resultDefinition *results.ResultDefinition) error {
 
 	idx := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == resultDefinition.Id })
@@ -135,7 +178,12 @@ func (dbm *DBMock) AddResultDefinition(resultDefinition *results.ResultDefinitio
 	return nil
 }
 
-// Update Result Job into Result Definition in database
+/**
+UpdateResultJob function updates a given ResultJob in the database by modifying its content in
+the relevant ResultDefinition. It takes as input the pointer of the ResultJob and the identifier
+of the ResultDefinition to which it belongs. It provides as output an error variable in charge
+of notifying any problem.
+*/
 func (dbm *DBMock) UpdateResultJob(resultJob *results.ResultJob, resultDefinitionId string) error {
 
 	idxResultDefinition := slices.IndexFunc(dbm.ResultDefinitionStructs, func(rd results.ResultDefinition) bool { return rd.Id == resultDefinitionId })
@@ -154,7 +202,11 @@ func (dbm *DBMock) UpdateResultJob(resultJob *results.ResultJob, resultDefinitio
 	return nil
 }
 
-// Returns those definitions where some of their tasks are pending execution.
+/**
+GetDefinitionsWithWaitings returns those definitions where some of their tasks are pending
+execution. Returns a pointer to the resulting list of definitions and an error variable in
+charge of notifying any problem.
+*/
 func (dbm *DBMock) GetDefinitionsWithWaitings() (*[]definitions.Definition, error) {
 
 	var res []definitions.Definition
