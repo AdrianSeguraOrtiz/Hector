@@ -25,9 +25,7 @@ type ResultDefinition struct {
 	ResultJobs      []ResultJob
 }
 
-/**
-String function is applied to ResultDefinition variables and returns their content as a string.
-*/
+// String function is applied to ResultDefinition variables and returns their content as a string.
 func (rdef *ResultDefinition) String() string {
 	s, _ := json.MarshalIndent(rdef, "", "  ")
 	return string(s)

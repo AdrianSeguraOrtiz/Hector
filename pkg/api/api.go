@@ -27,14 +27,12 @@ type Element interface {
 	components.Component | specifications.Specification | [][]string | definitions.Definition | results.ResultDefinition
 }
 
-/**
-getElement function implements a generic procedure that is in charge of answering
-requests that ask for information about a certain element in the database. To do so,
-it requires the function in charge of performing the extraction from the database.
-Finally, it records the result in the body of the response. It takes as input the
-request, the get function that communicates with the database and the variable type
-ResponseWriter where the output is registered.
-*/
+// getElement function implements a generic procedure that is in charge of answering
+// requests that ask for information about a certain element in the database. To do so,
+// it requires the function in charge of performing the extraction from the database.
+// Finally, it records the result in the body of the response. It takes as input the
+// request, the get function that communicates with the database and the variable type
+// ResponseWriter where the output is registered.
 func getElement[V Element](f func(string) (*V, error), w http.ResponseWriter, r *http.Request) {
 
 	// We collect the ID of the url
@@ -54,13 +52,11 @@ func getElement[V Element](f func(string) (*V, error), w http.ResponseWriter, r 
 	json.NewEncoder(w).Encode(*databaseElement)
 }
 
-/**
-readAndValidateElement function implements a generic procedure that reads the content of
-an element in the request body and validates its structure. To do so, it requires the
-function in charge of performing such validation. It takes as input the request and a
-validation function. It provides in the output the element read and an error type variable
-notifying of any problem.
-*/
+// readAndValidateElement function implements a generic procedure that reads the content of
+// an element in the request body and validates its structure. To do so, it requires the
+// function in charge of performing such validation. It takes as input the request and a
+// validation function. It provides in the output the element read and an error type variable
+// notifying of any problem.
 func readAndValidateElement[V Element](f func(*V) error, r *http.Request) (V, error) {
 
 	// Read element from body
@@ -81,11 +77,9 @@ func readAndValidateElement[V Element](f func(*V) error, r *http.Request) (V, er
 	return element, nil
 }
 
-/**
-NewApi function creates a new instance of type Api. It takes as input a controller.
-It returns the pointer to the new instance of the api and an error variable to
-report any problems.
-*/
+// NewApi function creates a new instance of type Api. It takes as input a controller.
+// It returns the pointer to the new instance of the api and an error variable to
+// report any problems.
 func NewApi(controller *controllers.Controller) (*Api, error) {
 	a := Api{}
 
@@ -105,11 +99,9 @@ func NewApi(controller *controllers.Controller) (*Api, error) {
 	return &a, nil
 }
 
-/**
-submitComponent function is responsible for extracting the component element from
-the request body and inserting it into the database. It takes as input the request
-and the variable type ResponseWriter where the result of the operation is notified.
-*/
+// submitComponent function is responsible for extracting the component element from
+// the request body and inserting it into the database. It takes as input the request
+// and the variable type ResponseWriter where the result of the operation is notified.
 func (a *Api) submitComponent(w http.ResponseWriter, r *http.Request) {
 
 	// Read component from body and validate scheme
@@ -129,11 +121,9 @@ func (a *Api) submitComponent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/**
-submitSpecification function is responsible for extracting the specification element from
-the request body and inserting it into the database. It takes as input the request
-and the variable type ResponseWriter where the result of the operation is notified.
-*/
+// submitSpecification function is responsible for extracting the specification element from
+// the request body and inserting it into the database. It takes as input the request
+// and the variable type ResponseWriter where the result of the operation is notified.
 func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
 
 	// Read specification from body and validate scheme
@@ -171,11 +161,9 @@ func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-/**
-executeDefinition function extracts the Definition element from the request body and sends
-it to the controller for execution. Finally, it records the status of the operation in the
-variable type ResponseWriter. It takes as input the request and the variable type ResponseWriter.
-*/
+// executeDefinition function extracts the Definition element from the request body and sends
+// it to the controller for execution. Finally, it records the status of the operation in the
+// variable type ResponseWriter. It takes as input the request and the variable type ResponseWriter.
 func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 
 	// Read definition from body and validate scheme
@@ -209,52 +197,42 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-/**
-getComponent function is responsible for resolving requests for information about a particular
-Component element. To do so, it extracts the identifier from the body of the request and records
-the result in the ResponseWriter type variable. It takes as input the request and the
-ResponseWriter variable.
-*/
+// getComponent function is responsible for resolving requests for information about a particular
+// Component element. To do so, it extracts the identifier from the body of the request and records
+// the result in the ResponseWriter type variable. It takes as input the request and the
+// ResponseWriter variable.
 func (a *Api) getComponent(w http.ResponseWriter, r *http.Request) {
 	getElement((*a.Controller.Database).GetComponent, w, r)
 }
 
-/**
-getSpecification function is responsible for resolving requests for information about a particular
-Specification element. To do so, it extracts the identifier from the body of the request and records
-the result in the ResponseWriter type variable. It takes as input the request and the
-ResponseWriter variable.
-*/
+// getSpecification function is responsible for resolving requests for information about a particular
+// Specification element. To do so, it extracts the identifier from the body of the request and records
+// the result in the ResponseWriter type variable. It takes as input the request and the
+// ResponseWriter variable.
 func (a *Api) getSpecification(w http.ResponseWriter, r *http.Request) {
 	getElement((*a.Controller.Database).GetSpecification, w, r)
 }
 
-/**
-getTopologicalSort function is responsible for resolving requests for information about a particular
-Planning element. To do so, it extracts the identifier from the body of the request and records
-the result in the ResponseWriter type variable. It takes as input the request and the
-ResponseWriter variable.
-*/
+// getTopologicalSort function is responsible for resolving requests for information about a particular
+// Planning element. To do so, it extracts the identifier from the body of the request and records
+// the result in the ResponseWriter type variable. It takes as input the request and the
+// ResponseWriter variable.
 func (a *Api) getTopologicalSort(w http.ResponseWriter, r *http.Request) {
 	getElement((*a.Controller.Database).GetPlanning, w, r)
 }
 
-/**
-getDefinition function is responsible for resolving requests for information about a particular
-Definition element. To do so, it extracts the identifier from the body of the request and records
-the result in the ResponseWriter type variable. It takes as input the request and the
-ResponseWriter variable.
-*/
+// getDefinition function is responsible for resolving requests for information about a particular
+// Definition element. To do so, it extracts the identifier from the body of the request and records
+// the result in the ResponseWriter type variable. It takes as input the request and the
+// ResponseWriter variable.
 func (a *Api) getDefinition(w http.ResponseWriter, r *http.Request) {
 	getElement((*a.Controller.Database).GetDefinition, w, r)
 }
 
-/**
-getResultDefinition function is responsible for resolving requests for information about a particular
-ResultDefinition element. To do so, it extracts the identifier from the body of the request and records
-the result in the ResponseWriter type variable. It takes as input the request and the
-ResponseWriter variable.
-*/
+// getResultDefinition function is responsible for resolving requests for information about a particular
+// ResultDefinition element. To do so, it extracts the identifier from the body of the request and records
+// the result in the ResponseWriter type variable. It takes as input the request and the
+// ResponseWriter variable.
 func (a *Api) getResultDefinition(w http.ResponseWriter, r *http.Request) {
 	getElement((*a.Controller.Database).GetResultDefinition, w, r)
 }
