@@ -152,7 +152,7 @@ func getJobs(definition *definitions.Definition, database *databases.Database, v
 
 			// E. Get output files and specify its writing inside the data folder (used by default on the volume)
 			var outputFiles []string
-			specificParentFolder := specification.Id + "/" + definition.Name + " (" + definition.Id + ")/" + taskName + "/"
+			specificParentFolder := specification.Id + "/" + definition.Name + "--" + definition.Id + "/" + taskName + "/"
 			for _, output := range execComponent.Outputs {
 				if output.Type == "file" {
 					idxDefOutput := slices.IndexFunc(definitionTask.Outputs, func(do definitions.Parameter) bool { return do.Name == output.Name })

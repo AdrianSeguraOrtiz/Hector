@@ -22,6 +22,16 @@ func (i *arrayFlags) Set(value string) error {
 	return nil
 }
 
+func isFlagPassed(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
+}
+
 func main() {
 
 	// Get working directory
@@ -37,13 +47,13 @@ func main() {
 
 	// First subcommand
 	downloadCmd := flag.NewFlagSet("download", flag.ExitOnError)
-	downloadCmd.StringVar(&envFile, "env", ".env", "env file path")
+	downloadCmd.StringVar(&envFile, "env", "", "env file path")
 	downloadCmd.Var(&localPaths, "local-path", "local paths")
 	downloadCmd.Var(&remotePaths, "remote-path", "remote paths")
 
 	// Second subcommand
 	uploadCmd := flag.NewFlagSet("upload", flag.ExitOnError)
-	uploadCmd.StringVar(&envFile, "env", ".env", "env file path")
+	uploadCmd.StringVar(&envFile, "env", "", "env file path")
 	uploadCmd.Var(&localPaths, "local-path", "local paths")
 	uploadCmd.Var(&remotePaths, "remote-path", "remote paths")
 
@@ -69,15 +79,17 @@ func main() {
 		panic("the number of remote and local routes must be the same")
 	}
 
-	// Read environment variables
-	err := godotenv.Load(envFile)
-	if err != nil {
-		panic(err)
+	// Read environment variables if env file is specified
+	if isFlagPassed("env") {
+		err := godotenv.Load(envFile)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	// Create FileManager
 	var fileManager filemanagers.FileManager
-	fileManager, err = minio.NewMinio()
+	fileManager, err := minio.NewMinio()
 	if err != nil {
 		panic(err)
 	}

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -131,19 +130,18 @@ func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
 	}
 
 	// 2. Sidecar (Download and Upload)
-	envData := "MINIO_ENDPOINT=" + os.Getenv("MINIO_ENDPOINT") + "\n" +
-		"MINIO_ACCESS_KEY_ID=" + os.Getenv("MINIO_ACCESS_KEY_ID") + "\n" +
-		"MINIO_SECRET_ACCESS_KEY=" + os.Getenv("MINIO_SECRET_ACCESS_KEY") + "\n" +
-		"MINIO_USE_SSL=" + os.Getenv("MINIO_USE_SSL") + "\n" +
-		"MINIO_BUCKET_NAME=" + os.Getenv("MINIO_BUCKET_NAME")
-	envFile := "secrets/file.env"
-	_, b, _, _ := runtime.Caller(0)
-	basepath, _ := filepath.Abs(filepath.Dir(b) + "../../../../")
-	sidecarMain := basepath + "/cmd/filemanager/main"
+	filemanagerImage := "adriansegura99/hector_sidecar:1.0.0"
+	envVars := map[string]string{
+		"MINIO_ENDPOINT":          os.Getenv("MINIO_ENDPOINT"),
+		"MINIO_ACCESS_KEY_ID":     os.Getenv("MINIO_ACCESS_KEY_ID"),
+		"MINIO_SECRET_ACCESS_KEY": os.Getenv("MINIO_SECRET_ACCESS_KEY"),
+		"MINIO_USE_SSL":           os.Getenv("MINIO_USE_SSL"),
+		"MINIO_BUCKET_NAME":       os.Getenv("MINIO_BUCKET_NAME"),
+	}
 
 	var downloadPaths []string
 	for _, path := range job.RequiredFiles {
-		downloadPaths = append(downloadPaths, "--local-path", "../alloc/"+filepath.Base(path), "--remote-path", path)
+		downloadPaths = append(downloadPaths, "--local-path", "data/"+filepath.Base(path), "--remote-path", path)
 	}
 	downloadTask := &api.Task{
 		Name: "download-task",
@@ -151,24 +149,19 @@ func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
 			Hook:    api.TaskLifecycleHookPrestart,
 			Sidecar: false,
 		},
-		Templates: []*api.Template{
-			{
-				EmbeddedTmpl: &envData,
-				DestPath:     &envFile,
-				Envvars:      pkg.Ptr(true),
-			},
-		},
-		Driver: "raw_exec",
+		Driver: "docker",
 		Config: map[string]interface{}{
-			"command": sidecarMain,
-			"args":    append([]string{"download", "--env", envFile}, downloadPaths...),
+			"image":   filemanagerImage,
+			"args":    append([]string{"download"}, downloadPaths...),
+			"volumes": []string{"../alloc:/usr/local/src/data"},
 		},
+		Env:           envVars,
 		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
 
 	var uploadPaths []string
 	for _, path := range job.OutputFiles {
-		uploadPaths = append(uploadPaths, "--local-path", "../alloc/"+filepath.Base(path), "--remote-path", path)
+		uploadPaths = append(uploadPaths, "--local-path", "data/"+filepath.Base(path), "--remote-path", path)
 	}
 	uploadTask := &api.Task{
 		Name: "upload-task",
@@ -176,18 +169,13 @@ func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
 			Hook:    api.TaskLifecycleHookPoststop,
 			Sidecar: false,
 		},
-		Templates: []*api.Template{
-			{
-				EmbeddedTmpl: &envData,
-				DestPath:     &envFile,
-				Envvars:      pkg.Ptr(true),
-			},
-		},
-		Driver: "raw_exec",
+		Driver: "docker",
 		Config: map[string]interface{}{
-			"command": sidecarMain,
-			"args":    append([]string{"upload", "--env", envFile}, uploadPaths...),
+			"image":   filemanagerImage,
+			"args":    append([]string{"upload"}, uploadPaths...),
+			"volumes": []string{"../alloc:/usr/local/src/data"},
 		},
+		Env:           envVars,
 		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
 

@@ -15,4 +15,5 @@
 .env
 
 # Binary file
-cmd/filemanager/main
+sidecar
+sidecar.dockerfile
