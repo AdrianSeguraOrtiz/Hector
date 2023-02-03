@@ -8,6 +8,9 @@ import (
 	"sort"
 )
 
+// ReadFile function reads a file and returns the array of bytes
+// corresponding to its contents. Takes the file path as input. Returns
+// the array of bytes and an error variable to report any problems.
 func ReadFile(str string) ([]byte, error) {
 	// Open jsonFile
 	jsonFile, err := os.Open(str)
@@ -27,6 +30,9 @@ func ReadFile(str string) ([]byte, error) {
 	return byteValue, nil
 }
 
+// Contains function asserts or denies the presence of a given string
+// in an array of strings. Takes as input the string and the string array.
+// Returns a boolean variable.
 func Contains(s []string, str string) bool {
 	for _, v := range s {
 		if v == str {
@@ -37,8 +43,19 @@ func Contains(s []string, str string) bool {
 	return false
 }
 
+// Ptr function stores the input value in a variable and returns the pointer
+// to it. It takes any value as input. Returns a pointer.
 func Ptr[T any](v T) *T { return &v }
 
+// Compare function affirms or disaffirms the equality of two variables. It contains
+// an additional boolean variable applied in case of receiving input pointers that
+// allows to specify whether to measure their equality by their values or respective
+// references. If the variables in question are composite (made up of simpler variables)
+// the DeepValueEqual function is called to compare each of their constituent parts.
+// It takes as input two variables of any class for comparison and the additional boolean
+// variable relating to the pointers. Returns as output a boolean variable and a string
+// variable that records any distinction between the variables, providing a justification
+// of the answer.
 func Compare(a, b any, compareValuesInsteadOfPointers bool) (bool, string) {
 	var comparison bool
 	var message string
@@ -56,6 +73,14 @@ func Compare(a, b any, compareValuesInsteadOfPointers bool) (bool, string) {
 	return comparison, message
 }
 
+// DeepValueEqual function affirms or disaffirms the equality between two composite variables.
+// To do so, it recursively calls the Compare function by instantiating it with the simple
+// variables that constitute them. It contains an additional boolean variable relative to the
+// pointers that allows to specify whether their equality will depend on their values or
+// references. It takes as input two variables of any of the following types: Slice, Map or
+// Struct, and the boolean variable relative to the pointers. For output it returns a boolean
+// variable and a string variable that records any distinction between the variables, providing
+// a justification of the answer.
 func DeepValueEqual(nested1, nested2 any, compareValuesInsteadOfPointers bool) (bool, string) {
 	// Get reflect value of each input parameter
 	v1 := reflect.ValueOf(nested1)

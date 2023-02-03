@@ -7,6 +7,9 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+// RepresentsType function is responsible for validating that the type specified for the variable
+// is within the allowed ones. It takes as input a variable type validator.FieldLevel and returns
+// a boolean value.
 func RepresentsType(fl validator.FieldLevel) bool {
 	value := fl.Field().Interface().(string)
 	types := []string{"string", "int", "float", "bool"}
@@ -29,11 +32,15 @@ type Component struct {
 	ContainerCommand    []string `json:"containerCommand"`
 }
 
+// String function is applied to Component variables and returns their content as a string.
 func (comp *Component) String() string {
 	s, _ := json.MarshalIndent(comp, "", "  ")
 	return string(s)
 }
 
+// FromFile function is applied on variables of type Component and it is in charge of dumping
+// the content of a file in this variable. It takes as input the path of the file and returns
+// an error type variable in charge of notifying any problem.
 func (comp *Component) FromFile(file string) error {
 	content, err := pkg.ReadFile(file)
 	if err != nil {
