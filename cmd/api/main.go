@@ -4,7 +4,7 @@ import (
 	"dag/hector/golang/module/pkg/api"
 	"dag/hector/golang/module/pkg/controllers"
 	"dag/hector/golang/module/pkg/databases"
-	"dag/hector/golang/module/pkg/databases/dbmock"
+	"dag/hector/golang/module/pkg/databases/sqlite3"
 	"dag/hector/golang/module/pkg/executors"
 	"dag/hector/golang/module/pkg/executors/nomad"
 	"dag/hector/golang/module/pkg/schedulers"
@@ -22,7 +22,12 @@ func main() {
 	var scheduler schedulers.Scheduler = topologicalgrouped.NewTopologicalGrouped()
 
 	// Create Database
-	var database databases.Database = dbmock.NewDBMock()
+	var database databases.Database
+	var err error
+	database, err = sqlite3.NewSQLite3()
+	if err != nil {
+		panic(err)
+	}
 
 	// Create Validator
 	validator := validators.NewValidator()
