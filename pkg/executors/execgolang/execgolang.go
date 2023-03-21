@@ -14,16 +14,20 @@ import (
 	"github.com/docker/docker/client"
 )
 
-func readerToString(rcPointer *io.ReadCloser) (string, error) {
-	bytes, err := io.ReadAll(*rcPointer)
+// readerToString function extracts the content of an io.ReadCloser variable and returns it as a string.
+func readerToString(rc *io.ReadCloser) (string, error) {
+	bytes, err := io.ReadAll(*rc)
 	if err != nil {
 		return "", err
 	}
 	return string(bytes), nil
 }
 
-func checkIfAvailable(ctx context.Context, cliPointer *client.Client, image string) (bool, error) {
-	images, err := (*cliPointer).ImageList(ctx, types.ImageListOptions{})
+// checkIfAvailable function checks if a certain image is available (built) in the system. To do so,
+// it takes as input the classic Context variable, a pointer to the Client and the name of the image.
+// Finally it returns a boolean value and an error variable in charge of notifying any problem.
+func checkIfAvailable(ctx context.Context, cli *client.Client, image string) (bool, error) {
+	images, err := cli.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -39,9 +43,11 @@ func checkIfAvailable(ctx context.Context, cliPointer *client.Client, image stri
 	return false, nil
 }
 
-func argumentsToSlice(argumentsPointer *[]definitions.Parameter) []string {
+// argumentsToSlice function takes Hector's own parameter definitions and converts
+// them into an array of strings by adding dashes to the tags.
+func argumentsToSlice(arguments *[]definitions.Parameter) []string {
 	var args []string
-	for _, arg := range *argumentsPointer {
+	for _, arg := range *arguments {
 		args = append(args, "--"+arg.Name)
 		args = append(args, arg.Value.(string))
 	}
@@ -50,18 +56,21 @@ func argumentsToSlice(argumentsPointer *[]definitions.Parameter) []string {
 
 type ExecGolang struct{}
 
+// NewExecGolang function creates a new instance of the ExecGolang type. It
+// returns a pointer to the constructed variable.
 func NewExecGolang() *ExecGolang {
 	return &ExecGolang{}
 }
 
-func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (*results.ResultJob, error) {
-	/*
-		This function executes a job locally.
-		Based on: https://docs.docker.com/engine/api/sdk/#sdk-and-api-quickstart and https://docs.docker.com/engine/api/sdk/examples/
-	*/
+// ExecuteJob function executes a job locally. It takes as input the pointer
+// of a given Job. It provides as output a pointer to the generated ResultJob
+// and an error variable in charge of notifying any problem.
+//
+// Based on: https://docs.docker.com/engine/api/sdk/#sdk-and-api-quickstart and https://docs.docker.com/engine/api/sdk/examples/
+func (eg *ExecGolang) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 
 	// We print the initialization message and display the job information
-	fmt.Printf("Started "+(*jobPointer).Name+" job. Info: \n\t %+v\n\n", *jobPointer)
+	fmt.Printf("Started "+job.Name+" job. Info: \n\t %+v\n\n", *job)
 
 	// We create the variable logs to store all the information associated with the definition of the job
 	var logs string
@@ -76,14 +85,14 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (*results.ResultJob, erro
 	}
 
 	// Pull image in case it is not available in the system
-	available, err := checkIfAvailable(ctx, cli, (*jobPointer).Image)
+	available, err := checkIfAvailable(ctx, cli, job.Image)
 	if err != nil {
 		return nil, err
 	}
 	if !available {
-		reader, err := cli.ImagePull(ctx, (*jobPointer).Image, types.ImagePullOptions{})
+		reader, err := cli.ImagePull(ctx, job.Image, types.ImagePullOptions{})
 		if err != nil {
-			return &results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: err.Error(), Status: results.Error}, nil
+			return &results.ResultJob{Id: job.Id, Name: job.Name, Logs: err.Error(), Status: results.Error}, nil
 		}
 		pullLogs, err := readerToString(&reader)
 		if err != nil {
@@ -93,9 +102,9 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (*results.ResultJob, erro
 	}
 
 	// We create the container by specifying the image and the job arguments
-	args := argumentsToSlice(&(*jobPointer).Arguments)
+	args := argumentsToSlice(&job.Arguments)
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: (*jobPointer).Image,
+		Image: job.Image,
 		Cmd:   args,
 	}, nil, nil, nil, "")
 	if err != nil {
@@ -119,7 +128,7 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (*results.ResultJob, erro
 	}
 
 	// We print the finalization message
-	fmt.Println("Finished " + (*jobPointer).Name + " job\n")
+	fmt.Println("Finished " + job.Name + " job\n")
 
 	// If the definition has reported contents in the error stream, the definition is considered failed.
 	errorReader, err := cli.ContainerLogs(ctx, resp.ID, types.ContainerLogsOptions{ShowStderr: true})
@@ -132,7 +141,7 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (*results.ResultJob, erro
 	}
 	if errorLogs != "" {
 		logs += errorLogs
-		return &results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: logs, Status: results.Error}, nil
+		return &results.ResultJob{Id: job.Id, Name: job.Name, Logs: logs, Status: results.Error}, nil
 	}
 
 	// Otherwise, the contents of the output stream are retrieved and the definition is considered successful.
@@ -145,5 +154,5 @@ func (eg *ExecGolang) ExecuteJob(jobPointer *jobs.Job) (*results.ResultJob, erro
 		return nil, err
 	}
 	logs += execLogs
-	return &results.ResultJob{Id: (*jobPointer).Id, Name: (*jobPointer).Name, Logs: logs, Status: results.Done}, nil
+	return &results.ResultJob{Id: job.Id, Name: job.Name, Logs: logs, Status: results.Done}, nil
 }

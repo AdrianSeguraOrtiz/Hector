@@ -7,22 +7,22 @@ import (
 
 type TopologicalGrouped struct{}
 
+// NewTopologicalGrouped function is responsible for creating
+// a new instance of the TopologicalGrouped type. It returns
+// the pointer to the generated variable.
 func NewTopologicalGrouped() *TopologicalGrouped {
 	return &TopologicalGrouped{}
 }
 
+// Plan function establishes a grouped topological order
+// for an optimal and correct definition of tasks defined
+// on a specification. Takes the specification pointer as
+// input and returns a two-dimensional vector with the
+// names of the sorted tasks.
 func (tg *TopologicalGrouped) Plan(specification *specifications.Specification) ([][]string, error) {
-	/*
-		This function establishes a grouped topological order
-		for an optimal and correct definition of tasks defined
-		on a specification.
-
-		Takes the specification pointer as input and returns a
-		two-dimensional vector with the names of the sorted tasks.
-	*/
 
 	// The task array is extracted from the value of the input pointer.
-	tasks := (*specification).Spec.Dag.Tasks
+	tasks := specification.Spec.Dag.Tasks
 
 	// Declare a map containing for each task, the number of dependencies defined for it in the specification
 	indegreeMap := make(map[string]int)
@@ -69,16 +69,12 @@ func (tg *TopologicalGrouped) Plan(specification *specifications.Specification) 
 	return result, nil
 }
 
+// getChildren function is in charge of extracting the dependent tasks
+// of the one specified in the entry. It takes as input the name of the
+// task whose children you want to know, and the pointer to the total
+// set of tasks in the specification. Finally it returns as result an
+// array with the names of the children of the input task.
 func getChildren(taskName string, tasks *[]specifications.SpecificationTask) []string {
-	/*
-		This function is in charge of extracting the dependent tasks
-		of the one specified in the entry.
-
-		It takes as input the name of the task whose children you want
-		to know, and the pointer to the total set of tasks in the specification.
-		Finally it returns as result an array with the names of the
-		children of the input task.
-	*/
 
 	// Declare the result list
 	var children []string

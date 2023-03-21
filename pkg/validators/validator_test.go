@@ -297,8 +297,8 @@ func TestValidateDefinitionTaskNames(t *testing.T) {
 		definition *definitions.Definition
 		want       string
 	}{
-		{&badDefinitionTaskNames1, "Task A is required in the selected specification but is not present in the definition file."},
-		{&badDefinitionTaskNames2, "Task B is required in the selected specification but is not present in the definition file."},
+		{&badDefinitionTaskNames1, "task A is required in the selected specification but is not present in the definition file"},
+		{&badDefinitionTaskNames2, "task B is required in the selected specification but is not present in the definition file"},
 		{&goodDefinitionTaskNames, ""},
 	}
 
@@ -390,9 +390,9 @@ func TestValidateDefinitionParameters(t *testing.T) {
 		definitionTask *definitions.DefinitionTask
 		want           string
 	}{
-		{&badTaskDefinition1, "Parameter input_1 is required but is not present in the definition file."},
-		{&badTaskDefinition2, "Parameter input_2 has an invalid value in the definition file."},
-		{&badTaskDefinition3, "Parameter output_1 is required but is not present in the definition file."},
+		{&badTaskDefinition1, "parameter input_1 is required but is not present in the definition file"},
+		{&badTaskDefinition2, "parameter input_2 has an invalid value in the definition file"},
+		{&badTaskDefinition3, "parameter output_1 is required but is not present in the definition file"},
 		{&goodTaskDefinition, ""},
 	}
 
