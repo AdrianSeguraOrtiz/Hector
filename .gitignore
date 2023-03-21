@@ -16,3 +16,4 @@
 .env
 sidecar
 sidecar.dockerfile
+*.sqlite

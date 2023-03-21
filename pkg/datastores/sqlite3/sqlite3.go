@@ -15,12 +15,12 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// We create a structured type with a pointer to the database
+// We create a structured type with a pointer to the datastore
 type SQLite3 struct {
-	Database *sql.DB
+	Backend *sql.DB
 }
 
-// Element is an interface that encompasses all the types collected in the database.
+// Element is an interface that encompasses all the types collected in the datastore.
 type Element interface {
 	components.Component | specifications.Specification | [][]string | definitions.Definition | results.ResultDefinition
 }
@@ -53,7 +53,7 @@ func NewSQLite3() (*SQLite3, error) {
 		return nil, err
 	}
 
-	db.Database = sql
+	db.Backend = sql
 
 	return &db, nil
 }
@@ -67,7 +67,7 @@ func genericGetFunction[V Element](dbsql *SQLite3, id string) (*V, error) {
 	strSelect := `SELECT content FROM hector WHERE id=?`
 
 	// We prepare the request corresponding to the query
-	statement, err := dbsql.Database.Prepare(strSelect)
+	statement, err := dbsql.Backend.Prepare(strSelect)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func genericAddFunction[V Element](dbsql *SQLite3, id string, filledStructPointe
 	strInsert := `INSERT INTO hector(id, content) VALUES(?, ?)`
 
 	// We prepare the request corresponding to the query
-	statement, err := dbsql.Database.Prepare(strInsert)
+	statement, err := dbsql.Backend.Prepare(strInsert)
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (dbsql *SQLite3) GetResultDefinition(id string) (*results.ResultDefinition,
 
 func (dbsql *SQLite3) AddComponent(componentPointer *components.Component) error {
 	/*
-	   Insert component in database
+	   Insert component in datastoreeeeee
 	*/
 
 	return genericAddFunction(dbsql, string(ComponentPrefix)+(*componentPointer).Id, componentPointer)
@@ -188,7 +188,7 @@ func (dbsql *SQLite3) AddComponent(componentPointer *components.Component) error
 
 func (dbsql *SQLite3) AddSpecification(specificationPointer *specifications.Specification) error {
 	/*
-	   Insert specification in database
+	   Insert specification in datastoree
 	*/
 
 	return genericAddFunction(dbsql, string(SpecificationPrefix)+(*specificationPointer).Id, specificationPointer)
@@ -196,7 +196,7 @@ func (dbsql *SQLite3) AddSpecification(specificationPointer *specifications.Spec
 
 func (dbsql *SQLite3) AddPlanning(planningPointer *[][]string, specificationId string) error {
 	/*
-	   Insert planning in database
+	   Insert planning in datastore
 	*/
 
 	return genericAddFunction(dbsql, string(PlanningPrefix)+specificationId, planningPointer)
@@ -204,7 +204,7 @@ func (dbsql *SQLite3) AddPlanning(planningPointer *[][]string, specificationId s
 
 func (dbsql *SQLite3) AddDefinition(definitionPointer *definitions.Definition) error {
 	/*
-	   Insert definition in database
+	   Insert definition in datastore
 	*/
 
 	return genericAddFunction(dbsql, string(DefinitionPrefix)+(*definitionPointer).Id, definitionPointer)
@@ -212,7 +212,7 @@ func (dbsql *SQLite3) AddDefinition(definitionPointer *definitions.Definition) e
 
 func (dbsql *SQLite3) AddResultDefinition(resultDefinitionPointer *results.ResultDefinition) error {
 	/*
-	   Insert result definition in database
+	   Insert result definition in datastoreee
 	*/
 
 	return genericAddFunction(dbsql, string(ResultDefPrefix)+(*resultDefinitionPointer).Id, resultDefinitionPointer)
@@ -220,7 +220,7 @@ func (dbsql *SQLite3) AddResultDefinition(resultDefinitionPointer *results.Resul
 
 func (dbsql *SQLite3) UpdateResultJob(resultJobPointer *results.ResultJob, resultDefinitionId string) error {
 	/*
-		Update Result Job into Result Definition in database
+		Update Result Job into Result Definition in datastore
 	*/
 
 	// Get Result Definition
@@ -241,7 +241,7 @@ func (dbsql *SQLite3) UpdateResultJob(resultJobPointer *results.ResultJob, resul
 	strUpdate := `UPDATE hector SET content=? WHERE id=?`
 
 	// We prepare the request corresponding to the query
-	statement, err := dbsql.Database.Prepare(strUpdate)
+	statement, err := dbsql.Backend.Prepare(strUpdate)
 	if err != nil {
 		return err
 	}
@@ -277,7 +277,7 @@ func (dbsql *SQLite3) GetDefinitionsWithWaitings() (*[]definitions.Definition, e
 	strSelect := `SELECT content FROM hector WHERE`
 
 	// We prepare the request corresponding to the query
-	statement, err := dbsql.Database.Prepare(strSelect)
+	statement, err := dbsql.Backend.Prepare(strSelect)
 	if err != nil {
 		return nil, err
 	}

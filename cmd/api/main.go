@@ -3,8 +3,8 @@ package main
 import (
 	"dag/hector/golang/module/pkg/api"
 	"dag/hector/golang/module/pkg/controllers"
-	"dag/hector/golang/module/pkg/databases"
-	"dag/hector/golang/module/pkg/databases/sqlite3"
+	"dag/hector/golang/module/pkg/datastores"
+	"dag/hector/golang/module/pkg/datastores/sqlite3"
 	"dag/hector/golang/module/pkg/executors"
 	"dag/hector/golang/module/pkg/executors/nomad"
 	"dag/hector/golang/module/pkg/schedulers"
@@ -21,10 +21,10 @@ func main() {
 	// Create Scheduler
 	var scheduler schedulers.Scheduler = topologicalgrouped.NewTopologicalGrouped()
 
-	// Create Database
-	var database databases.Database
+	// Create Datastore
+	var datastore datastores.Datastore
 	var err error
-	database, err = sqlite3.NewSQLite3()
+	datastore, err = sqlite3.NewSQLite3()
 	if err != nil {
 		panic(err)
 	}
@@ -33,7 +33,7 @@ func main() {
 	validator := validators.NewValidator()
 
 	// Create controller
-	controller := &controllers.Controller{Executor: &executor, Scheduler: &scheduler, Database: &database, Validator: validator}
+	controller := &controllers.Controller{Executor: &executor, Scheduler: &scheduler, Datastore: &datastore, Validator: validator}
 
 	// Create API
 	api, err := api.NewApi(controller)
@@ -45,7 +45,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", api.Router))
 
 	// Set pending definitions to execute
-	pendingDefinitions, err := (*controller.Database).GetDefinitionsWithWaitings()
+	pendingDefinitions, err := (*controller.Datastore).GetDefinitionsWithWaitings()
 	if err != nil {
 		panic(err)
 	}
