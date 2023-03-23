@@ -3,8 +3,8 @@ package controllers
 import (
 	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/components"
-	"dag/hector/golang/module/pkg/databases"
-	"dag/hector/golang/module/pkg/databases/dbmock"
+	"dag/hector/golang/module/pkg/datastores"
+	"dag/hector/golang/module/pkg/datastores/dbmock"
 	"dag/hector/golang/module/pkg/definitions"
 	"dag/hector/golang/module/pkg/executors"
 	"dag/hector/golang/module/pkg/executors/execmock"
@@ -115,14 +115,14 @@ func TestGetAndCheckSpecPlanning(t *testing.T) {
 		},
 	}
 
-	// Create Database
-	var database databases.Database = dbmock.NewDBMock()
+	// Create Datastore
+	var datastore datastores.Datastore = dbmock.NewDBMock()
 
 	// Insert test specification
-	database.AddSpecification(&testSpecification)
+	datastore.AddSpecification(&testSpecification)
 
 	// Insert test planning
-	database.AddPlanning(&testPlanning, testSpecification.Id)
+	datastore.AddPlanning(&testPlanning, testSpecification.Id)
 
 	// Create Validator
 	validator := validators.NewValidator()
@@ -131,7 +131,7 @@ func TestGetAndCheckSpecPlanning(t *testing.T) {
 
 		testname := "test_" + strconv.Itoa(i)
 		t.Run(testname, func(t *testing.T) {
-			specification, planning, err := getAndCheckSpecPlanning(tt.definition, &database, validator)
+			specification, planning, err := getAndCheckSpecPlanning(tt.definition, &datastore, validator)
 			if err == nil {
 				err = fmt.Errorf("")
 			}
@@ -241,8 +241,8 @@ func TestGetAndCheckJob(t *testing.T) {
 		},
 	}
 
-	// Create Database
-	var database databases.Database = dbmock.NewDBMock()
+	// Create Datastoree
+	var datastore datastores.Datastore = dbmock.NewDBMock()
 
 	// Declare test component
 	testComponent := components.Component{
@@ -286,13 +286,13 @@ func TestGetAndCheckJob(t *testing.T) {
 	testPlanning := [][]string{{"A"}}
 
 	// Insert test components
-	database.AddComponent(&testComponent)
+	datastore.AddComponent(&testComponent)
 
 	// Insert test specification
-	database.AddSpecification(&testSpecification)
+	datastore.AddSpecification(&testSpecification)
 
 	// Insert test planning
-	database.AddPlanning(&testPlanning, testSpecification.Id)
+	datastore.AddPlanning(&testPlanning, testSpecification.Id)
 
 	// Create Validator
 	validator := validators.NewValidator()
@@ -301,7 +301,7 @@ func TestGetAndCheckJob(t *testing.T) {
 
 		testname := "test_" + strconv.Itoa(i)
 		t.Run(testname, func(t *testing.T) {
-			job, err := getAndCheckJob(tt.definition, "A", &testSpecification, &database, validator)
+			job, err := getAndCheckJob(tt.definition, "A", &testSpecification, &datastore, validator)
 			if err == nil {
 				err = fmt.Errorf("")
 			}
@@ -395,17 +395,17 @@ func TestGetOrDefaultResultDefinition(t *testing.T) {
 		},
 	}
 
-	// Create Database
-	var database databases.Database = dbmock.NewDBMock()
+	// Create Datastore
+	var datastore datastores.Datastore = dbmock.NewDBMock()
 
-	// Add executed result definition to the database
-	database.AddResultDefinition(&executedResultDefinition)
+	// Add executed result definition to the datastore
+	datastore.AddResultDefinition(&executedResultDefinition)
 
 	for i, tt := range tests {
 
 		testname := "test_" + strconv.Itoa(i)
 		t.Run(testname, func(t *testing.T) {
-			resultDefinition, _ := getOrDefaultResultDefinition(tt.definition, &database, tt.nestedJobs)
+			resultDefinition, _ := getOrDefaultResultDefinition(tt.definition, &datastore, tt.nestedJobs)
 
 			equal, message := pkg.DeepValueEqual(*resultDefinition, *tt.resultDefinition, true)
 			if !equal {
@@ -514,17 +514,17 @@ func TestCheckJobExecutionRequirements(t *testing.T) {
 		},
 	}
 
-	// Create Database
-	var database databases.Database = dbmock.NewDBMock()
+	// Create Datastore
+	var datastore datastores.Datastore = dbmock.NewDBMock()
 
-	// Add result definition to the database
-	database.AddResultDefinition(&resultDefinition)
+	// Add result definition to the datastore
+	datastore.AddResultDefinition(&resultDefinition)
 
 	for i, tt := range tests {
 
 		testname := "test_" + strconv.Itoa(i)
 		t.Run(testname, func(t *testing.T) {
-			validForExecution, err := checkJobExecutionRequirements(tt.job, &jobResults, &database, resultDefinition.Id)
+			validForExecution, err := checkJobExecutionRequirements(tt.job, &jobResults, &datastore, resultDefinition.Id)
 
 			if err != nil {
 				t.Error("Unexpected error detected: " + err.Error())
@@ -534,7 +534,7 @@ func TestCheckJobExecutionRequirements(t *testing.T) {
 				if status := jobResults[tt.job.Name].Status; status != results.Cancelled {
 					t.Error("The status recorded in the local storage is not correct. Cancelled was expected but obtained " + fmt.Sprintf("%v", status))
 				}
-				resDef, _ := database.GetResultDefinition(resultDefinition.Id)
+				resDef, _ := datastore.GetResultDefinition(resultDefinition.Id)
 				idx := slices.IndexFunc(resDef.ResultJobs, func(rj results.ResultJob) bool { return rj.Id == tt.job.Id })
 				if status := resDef.ResultJobs[idx].Status; status != results.Cancelled {
 					t.Error("The status recorded in the remote storage is not correct. Cancelled was expected but obtained " + fmt.Sprintf("%v", status))
@@ -572,20 +572,20 @@ func TestRunAndUpdateStatus(t *testing.T) {
 	// We created an access control system to prevent co-occurrence into goroutines
 	mutex := &sync.RWMutex{}
 
-	// Create Database
-	var database databases.Database = dbmock.NewDBMock()
+	// Create Datastore
+	var datastore datastores.Datastore = dbmock.NewDBMock()
 
-	// Add result definition to the database
-	database.AddResultDefinition(&resultDefinition)
+	// Add result definition to the datastore
+	datastore.AddResultDefinition(&resultDefinition)
 
 	t.Run("test", func(t *testing.T) {
-		err := runAndUpdateStatus(&executor, &job, mutex, &jobResults, &database, resultDefinition.Id)
+		err := runAndUpdateStatus(&executor, &job, mutex, &jobResults, &datastore, resultDefinition.Id)
 
 		if err != nil {
 			t.Error("Unexpected error detected: " + err.Error())
 		} else if jobResults[job.Name].Status == results.Waiting {
 			t.Error("The status registered in the local storage has not been updated")
-		} else if rd, _ := database.GetResultDefinition(resultDefinition.Id); rd.ResultJobs[0].Status == results.Waiting {
+		} else if rd, _ := datastore.GetResultDefinition(resultDefinition.Id); rd.ResultJobs[0].Status == results.Waiting {
 			t.Error("The status registered in the remote storage has not been updated")
 		}
 	})
