@@ -79,7 +79,7 @@ func (val *Validator) ValidateDefinitionParameters(definitionParameterArray *[]d
 			return fmt.Errorf("parameter %s is required but is not present in the definition file", componentPut.Name)
 		}
 		definitionParameter := (*definitionParameterArray)[idxDefinitionParameter]
-		if reflect.TypeOf(definitionParameter.Value).String() != componentPut.Type {
+		if defParamType := reflect.TypeOf(definitionParameter.Value).String(); defParamType != componentPut.Type && !(defParamType == "string" && componentPut.Type == "file") {
 			return fmt.Errorf("parameter %s has an invalid value in the definition file", componentPut.Name)
 		}
 	}

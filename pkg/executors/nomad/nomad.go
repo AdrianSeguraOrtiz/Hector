@@ -3,9 +3,12 @@ package nomad
 import (
 	"dag/hector/golang/module/pkg"
 	"dag/hector/golang/module/pkg/definitions"
+	"dag/hector/golang/module/pkg/filemanagers"
 	"dag/hector/golang/module/pkg/jobs"
 	"dag/hector/golang/module/pkg/results"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/hashicorp/nomad/api"
@@ -13,15 +16,16 @@ import (
 )
 
 type Nomad struct {
-	Client *api.Client
+	Client      *api.Client
+	FileManager *filemanagers.FileManager
 }
 
 // NewNomad function creates a new instance of the Nomad type. It returns a pointer to the
 // constructed variable.
-func NewNomad() *Nomad {
+func NewNomad(fileManager *filemanagers.FileManager) *Nomad {
 	cfg := api.DefaultConfig()
 	client, _ := api.NewClient(cfg)
-	return &Nomad{Client: client}
+	return &Nomad{Client: client, FileManager: fileManager}
 }
 
 // ExecuteJob function is responsible for the execution of a Job. It takes as input the
@@ -75,10 +79,23 @@ func (no *Nomad) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	}
 
 	// Get logs from our allocation
-	logs, err := getLogsFromAllocation(alloc, status, taskName, no.Client.AllocFS().Logs)
+	// 1. Download sidecar
+	downLogs, err := getLogsFromAllocation(alloc, status, "download-task", no.Client.AllocFS().Logs)
 	if err != nil {
 		return nil, err
 	}
+	// 2. Main task
+	mainLogs, err := getLogsFromAllocation(alloc, status, taskName, no.Client.AllocFS().Logs)
+	if err != nil {
+		return nil, err
+	}
+	// 3. Upload sidecar
+	upLogs, err := getLogsFromAllocation(alloc, status, "upload-task", no.Client.AllocFS().Logs)
+	if err != nil {
+		return nil, err
+	}
+	// 4. Join logs
+	logs := downLogs + mainLogs + upLogs
 
 	// We return the result job
 	return &results.ResultJob{Id: job.Id, Name: job.Name, Logs: warnings + logs, Status: status}, nil
@@ -102,26 +119,77 @@ func argumentsToSlice(arguments *[]definitions.Parameter) []string {
 // task group. Returns the pointer to the constructed nomad Job.
 func buildJob(job *jobs.Job, taskName string, taskGroupName string) *api.Job {
 
-	// 1. Task
+	// 1. Main Task
 	args := argumentsToSlice(&job.Arguments)
 	nomadTask := &api.Task{
 		Name:   taskName,
 		Driver: "docker",
 		Config: map[string]interface{}{
-			"image": job.Image,
-			"args":  args,
+			"image":   job.Image,
+			"args":    args,
+			"volumes": []string{"../alloc:/usr/local/src/data"},
 		},
 		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
 
-	// 2. Task Group
-	nomadTaskGroup := &api.TaskGroup{
-		Name:          &taskGroupName,
-		Tasks:         []*api.Task{nomadTask},
+	// 2. Sidecar (Download and Upload)
+	filemanagerImage := "adriansegura99/hector_sidecar:1.0.0"
+	envVars := map[string]string{
+		"MINIO_ENDPOINT":          os.Getenv("MINIO_ENDPOINT"),
+		"MINIO_ACCESS_KEY_ID":     os.Getenv("MINIO_ACCESS_KEY_ID"),
+		"MINIO_SECRET_ACCESS_KEY": os.Getenv("MINIO_SECRET_ACCESS_KEY"),
+		"MINIO_USE_SSL":           os.Getenv("MINIO_USE_SSL"),
+		"MINIO_BUCKET_NAME":       os.Getenv("MINIO_BUCKET_NAME"),
+	}
+
+	var downloadPaths []string
+	for _, path := range job.RequiredFiles {
+		downloadPaths = append(downloadPaths, "--local-path", "data/"+filepath.Base(path), "--remote-path", path)
+	}
+	downloadTask := &api.Task{
+		Name: "download-task",
+		Lifecycle: &api.TaskLifecycle{
+			Hook:    api.TaskLifecycleHookPrestart,
+			Sidecar: false,
+		},
+		Driver: "docker",
+		Config: map[string]interface{}{
+			"image":   filemanagerImage,
+			"args":    append([]string{"download"}, downloadPaths...),
+			"volumes": []string{"../alloc:/usr/local/src/data"},
+		},
+		Env:           envVars,
 		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
 	}
 
-	// 3. Job
+	var uploadPaths []string
+	for _, path := range job.OutputFiles {
+		uploadPaths = append(uploadPaths, "--local-path", "data/"+filepath.Base(path), "--remote-path", path)
+	}
+	uploadTask := &api.Task{
+		Name: "upload-task",
+		Lifecycle: &api.TaskLifecycle{
+			Hook:    api.TaskLifecycleHookPoststop,
+			Sidecar: false,
+		},
+		Driver: "docker",
+		Config: map[string]interface{}{
+			"image":   filemanagerImage,
+			"args":    append([]string{"upload"}, uploadPaths...),
+			"volumes": []string{"../alloc:/usr/local/src/data"},
+		},
+		Env:           envVars,
+		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+	}
+
+	// 3. Task Group
+	nomadTaskGroup := &api.TaskGroup{
+		Name:          &taskGroupName,
+		Tasks:         []*api.Task{downloadTask, nomadTask, uploadTask},
+		RestartPolicy: &api.RestartPolicy{Attempts: pkg.Ptr(0)},
+	}
+
+	// 4. Job
 	nomadJob := &api.Job{
 		ID:          &job.Id,
 		Name:        &job.Name,
@@ -225,7 +293,9 @@ func getLogsFromAllocation(alloc *api.Allocation, status results.Status, taskNam
 
 	// Extract the contents of the logs
 	case frame := <-frames:
-		logs += string(frame.Data)
+		if frame != nil {
+			logs += string(frame.Data)
+		}
 	}
 
 	return logs, nil

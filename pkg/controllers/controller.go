@@ -69,6 +69,15 @@ func getJobs(definition *definitions.Definition, datastore *datastores.Datastore
 		return nil, err
 	}
 
+	// We validate that the tasks required in the specification are specified in the definition file
+	taskValidatorErr := validator.ValidateDefinitionTaskNames(&definition.Data.Tasks, &specification.Spec.Dag.Tasks)
+	if taskValidatorErr != nil {
+		return nil, taskValidatorErr
+	}
+
+	// We create a map to store the output files produced by each task
+	filesMap := make(map[string][]string)
+
 	// We build a two-dimensional vector to store the topologically ordered tasks with the necessary content for their definition.
 	var nestedJobs [][]jobs.Job
 
@@ -193,23 +202,53 @@ func getOrDefaultResultDefinition(definition *definitions.Definition, datastore 
 				ResultJobs:      []results.ResultJob{},
 			}
 
-			// We instantiate all its works in a waiting state
-			for _, jobGroup := range *nestedJobs {
-				for _, job := range jobGroup {
-					resultDefinition.ResultJobs = append(resultDefinition.ResultJobs, results.ResultJob{Id: job.Id, Name: job.Name, Status: results.Waiting})
+			// E. Get output files and specify its writing inside the data folder (used by default on the volume)
+			var outputFiles []string
+			specificParentFolder := specification.Id + "/" + definition.Name + "--" + definition.Id + "/" + taskName + "/"
+			for _, output := range execComponent.Outputs {
+				if output.Type == "file" {
+					idxDefOutput := slices.IndexFunc(definitionTask.Outputs, func(do definitions.Parameter) bool { return do.Name == output.Name })
+					fileBaseName := definitionTask.Outputs[idxDefOutput].Value.(string)
+					definitionTask.Outputs[idxDefOutput].Value = "./data/" + fileBaseName
+					outputFiles = append(outputFiles, specificParentFolder+fileBaseName)
+				}
+			}
+			filesMap[taskName] = outputFiles
+
+			// F. Get required files
+			// Generated during execution (since we go through the tasks in topological order, we can extract the files from the map itself)
+			var requiredFiles []string
+			for _, depName := range specificationTask.Dependencies {
+				requiredFiles = append(requiredFiles, filesMap[depName]...)
+			}
+			// Specify its location inside the data folder (used by default on the volume)
+			for _, input := range execComponent.Inputs {
+				if input.Type == "file" {
+					idxDefInput := slices.IndexFunc(definitionTask.Inputs, func(di definitions.Parameter) bool { return di.Name == input.Name })
+					fileBaseName := definitionTask.Inputs[idxDefInput].Value.(string)
+					definitionTask.Inputs[idxDefInput].Value = "./data/" + fileBaseName
+					//TODO: Check external files to find in minio
+					/*
+						if isExternal
+							requiredFiles = append(requiredFiles, fileBaseName)
+						}
+					*/
 				}
 			}
 
-			// We add the result definition to the datastore
-			err := (*datastore).AddResultDefinition(resultDefinition)
-			if err != nil {
-				return nil, fmt.Errorf("error during insertion into the datastore %s", err.Error())
+			// G. We create the definition task (job)
+			job := jobs.Job{
+				Id:            xid.New().String(),
+				Name:          taskName,
+				Image:         execComponent.ContainerImage,
+				Arguments:     append(definitionTask.Inputs, definitionTask.Outputs...),
+				Dependencies:  specificationTask.Dependencies,
+				RequiredFiles: requiredFiles,
+				OutputFiles:   outputFiles,
 			}
-		}
-	default:
-		// In case of another error, it is returned in the function
-		if err != nil {
-			return nil, err
+
+			// H. We add it to the group's task list
+			jobsGroup = append(jobsGroup, job)
 		}
 	}
 

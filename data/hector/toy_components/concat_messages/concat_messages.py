@@ -1,3 +1,4 @@
+from pathlib import Path
 import typer
 
 def concat_messages(
@@ -15,6 +16,7 @@ def concat_messages(
     concat = message_1 + " " + message_2
     print(concat)
 
+    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
     f = open(output_file, "a")
     f.write(concat)
     f.close()

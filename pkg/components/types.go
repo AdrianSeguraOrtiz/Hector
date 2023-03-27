@@ -12,7 +12,7 @@ import (
 // a boolean value.
 func RepresentsType(fl validator.FieldLevel) bool {
 	value := fl.Field().Interface().(string)
-	types := []string{"string", "int", "float", "bool"}
+	types := []string{"string", "int", "float", "bool", "file"}
 	return pkg.Contains(types, value)
 }
 

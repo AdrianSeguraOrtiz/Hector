@@ -106,6 +106,7 @@ func (eg *ExecGolang) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
 	resp, err := cli.ContainerCreate(ctx, &container.Config{
 		Image: job.Image,
 		Cmd:   args,
+		// TODO: Volumes: map[string]struct{}
 	}, nil, nil, nil, "")
 	if err != nil {
 		return nil, err

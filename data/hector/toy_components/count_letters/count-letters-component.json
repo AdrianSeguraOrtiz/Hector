@@ -5,13 +5,13 @@
     "inputs": [
         {
             "name": "input-file",
-            "type": "string"
+            "type": "file"
         }
     ],
     "outputs": [
         {
             "name": "output-file",
-            "type": "string"
+            "type": "file"
         }
     ],
     "containerDockerfile": "repo/data/hector/toy_components/count_letters/Dockerfile",

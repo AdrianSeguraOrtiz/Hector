@@ -7,16 +7,34 @@ import (
 	"dag/hector/golang/module/pkg/datastores/sqlite3"
 	"dag/hector/golang/module/pkg/executors"
 	"dag/hector/golang/module/pkg/executors/nomad"
+	"dag/hector/golang/module/pkg/filemanagers"
+	"dag/hector/golang/module/pkg/filemanagers/minio"
 	"dag/hector/golang/module/pkg/schedulers"
 	"dag/hector/golang/module/pkg/schedulers/topologicalgrouped"
 	"dag/hector/golang/module/pkg/validators"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Read environment variables
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic(err)
+	}
+
+	// Create FileManager
+	var fileManager filemanagers.FileManager
+	fileManager, err = minio.NewMinio()
+	if err != nil {
+		panic(err)
+	}
+
 	// Create Executor
-	var executor executors.Executor = nomad.NewNomad()
+	var executor executors.Executor = nomad.NewNomad(&fileManager)
 
 	// Create Scheduler
 	var scheduler schedulers.Scheduler = topologicalgrouped.NewTopologicalGrouped()
@@ -42,7 +60,9 @@ func main() {
 	}
 
 	// Raise the API
-	log.Fatal(http.ListenAndServe(":8080", api.Router))
+	host := os.Getenv("API_HOST")
+	port := os.Getenv("API_PORT")
+	log.Fatal(http.ListenAndServe(host+":"+port, api.Router))
 
 	// Set pending definitions to execute
 	pendingDefinitions, err := (*controller.Datastore).GetDefinitionsWithWaitings()
