@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
+// readerToString function extracts the content of an io.ReadCloser variable and returns it as a string.
 func readerToString(rc *io.ReadCloser) (string, error) {
 	bytes, err := io.ReadAll(*rc)
 	if err != nil {
@@ -22,6 +23,9 @@ func readerToString(rc *io.ReadCloser) (string, error) {
 	return string(bytes), nil
 }
 
+// checkIfAvailable function checks if a certain image is available (built) in the system. To do so,
+// it takes as input the classic Context variable, a pointer to the Client and the name of the image.
+// Finally it returns a boolean value and an error variable in charge of notifying any problem.
 func checkIfAvailable(ctx context.Context, cli *client.Client, image string) (bool, error) {
 	images, err := cli.ImageList(ctx, types.ImageListOptions{})
 	if err != nil {
@@ -39,6 +43,8 @@ func checkIfAvailable(ctx context.Context, cli *client.Client, image string) (bo
 	return false, nil
 }
 
+// argumentsToSlice function takes Hector's own parameter definitions and converts
+// them into an array of strings by adding dashes to the tags.
 func argumentsToSlice(arguments *[]definitions.Parameter) []string {
 	var args []string
 	for _, arg := range *arguments {
@@ -50,15 +56,18 @@ func argumentsToSlice(arguments *[]definitions.Parameter) []string {
 
 type ExecGolang struct{}
 
+// NewExecGolang function creates a new instance of the ExecGolang type. It
+// returns a pointer to the constructed variable.
 func NewExecGolang() *ExecGolang {
 	return &ExecGolang{}
 }
 
+// ExecuteJob function executes a job locally. It takes as input the pointer
+// of a given Job. It provides as output a pointer to the generated ResultJob
+// and an error variable in charge of notifying any problem.
+//
+// Based on: https://docs.docker.com/engine/api/sdk/#sdk-and-api-quickstart and https://docs.docker.com/engine/api/sdk/examples/
 func (eg *ExecGolang) ExecuteJob(job *jobs.Job) (*results.ResultJob, error) {
-	/*
-		This function executes a job locally.
-		Based on: https://docs.docker.com/engine/api/sdk/#sdk-and-api-quickstart and https://docs.docker.com/engine/api/sdk/examples/
-	*/
 
 	// We print the initialization message and display the job information
 	fmt.Printf("Started "+job.Name+" job. Info: \n\t %+v\n\n", *job)

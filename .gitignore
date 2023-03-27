@@ -17,3 +17,6 @@
 # Binary file
 sidecar
 sidecar.dockerfile
+
+# Database
+*.sqlite

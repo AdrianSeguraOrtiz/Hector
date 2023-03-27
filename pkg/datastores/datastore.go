@@ -1,4 +1,4 @@
-package databases
+package datastores
 
 import (
 	"dag/hector/golang/module/pkg/components"
@@ -7,7 +7,7 @@ import (
 	"dag/hector/golang/module/pkg/specifications"
 )
 
-type Database interface {
+type Datastore interface {
 	GetComponent(id string) (*components.Component, error)
 	GetSpecification(id string) (*specifications.Specification, error)
 	GetPlanning(id string) (*[][]string, error)

@@ -16,30 +16,31 @@ import (
 	"github.com/rs/xid"
 )
 
-// Api is a structured type containing a field with a router, database, validator and task executor.
+// Api is a structured type containing a field with a router, datastore, validator and task executor.
 type Api struct {
 	Router     http.Handler
 	Controller *controllers.Controller
 }
 
-// Element is an interface that encompasses all the types collected in the database.
+// Element is an interface that encompasses all the types collected in the datastore.
 type Element interface {
 	components.Component | specifications.Specification | [][]string | definitions.Definition | results.ResultDefinition
 }
 
-// Get Element function
+// getElement function implements a generic procedure that is in charge of answering
+// requests that ask for information about a certain element in the datastore. To do so,
+// it requires the function in charge of performing the extraction from the datastore.
+// Finally, it records the result in the body of the response. It takes as input the
+// request, the get function that communicates with the datastore and the variable type
+// ResponseWriter where the output is registered.
 func getElement[V Element](f func(string) (*V, error), w http.ResponseWriter, r *http.Request) {
-	/**
-	This function is in charge of avoiding code repetition, it receives a get
-	function from the database and returns the requested information based on it.
-	*/
 
 	// We collect the ID of the url
 	vars := mux.Vars(r)
 	id := vars["ID"]
 
-	// We launch a query to the database
-	databaseElement, err := f(id)
+	// We launch a query to the datastore
+	datastoreElement, err := f(id)
 	if err != nil {
 		log.Printf("Invalid id: %s", err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -48,15 +49,15 @@ func getElement[V Element](f func(string) (*V, error), w http.ResponseWriter, r 
 
 	// We write the output in the response writer
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(*databaseElement)
+	json.NewEncoder(w).Encode(*datastoreElement)
 }
 
-// Read and Validate Element function
-func readAndValidateElement[V Element](f func(*V) error, w http.ResponseWriter, r *http.Request) (V, error) {
-	/**
-	This function prevents code repetition, collects information from
-	the request body and validates its structure.
-	*/
+// readAndValidateElement function implements a generic procedure that reads the content of
+// an element in the request body and validates its structure. To do so, it requires the
+// function in charge of performing such validation. It takes as input the request and a
+// validation function. It provides in the output the element read and an error type variable
+// notifying of any problem.
+func readAndValidateElement[V Element](f func(*V) error, r *http.Request) (V, error) {
 
 	// Read element from body
 	var element V
@@ -76,7 +77,9 @@ func readAndValidateElement[V Element](f func(*V) error, w http.ResponseWriter, 
 	return element, nil
 }
 
-// We create a specific constructor for our problem
+// NewApi function creates a new instance of type Api. It takes as input a controller.
+// It returns the pointer to the new instance of the api and an error variable to
+// report any problems.
 func NewApi(controller *controllers.Controller) (*Api, error) {
 	a := Api{}
 
@@ -96,44 +99,42 @@ func NewApi(controller *controllers.Controller) (*Api, error) {
 	return &a, nil
 }
 
-// Submit Component function
+// submitComponent function is responsible for extracting the component element from
+// the request body and inserting it into the datastore. It takes as input the request
+// and the variable type ResponseWriter where the result of the operation is notified.
 func (a *Api) submitComponent(w http.ResponseWriter, r *http.Request) {
-	/**
-	Function in charge of adding a new component to the database.
-	*/
 
 	// Read component from body and validate scheme
-	component, err := readAndValidateElement(a.Controller.Validator.ValidateComponentStruct, w, r)
+	component, err := readAndValidateElement(a.Controller.Validator.ValidateComponentStruct, r)
 	if err != nil {
 		log.Print(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// Add component to database
-	databaseErr := (*a.Controller.Database).AddComponent(&component)
-	if databaseErr != nil {
-		log.Printf("error during insertion into the database %s", databaseErr.Error())
+	// Add component to datastore
+	datastoreErr := (*a.Controller.Datastore).AddComponent(&component)
+	if datastoreErr != nil {
+		log.Printf("error during insertion into the datastore %s", datastoreErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }
 
-// Submit Specification function
+// submitSpecification function is responsible for extracting the specification element from
+// the request body and inserting it into the datastore. It takes as input the request
+// and the variable type ResponseWriter where the result of the operation is notified.
 func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
-	/**
-	Function in charge of adding a new specification to the database.
-	*/
 
 	// Read specification from body and validate scheme
-	specification, err := readAndValidateElement(a.Controller.Validator.ValidateSpecificationStruct, w, r)
+	specification, err := readAndValidateElement(a.Controller.Validator.ValidateSpecificationStruct, r)
 	if err != nil {
 		log.Print(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// TODO???: Check that components are too in database ...
+	// TODO???: Check that components are too in datastore ...
 
 	// Calculate topological sort
 	planning, err := (*a.Controller.Scheduler).Plan(&specification)
@@ -143,31 +144,30 @@ func (a *Api) submitSpecification(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add topological sort to database
-	databasePlanningErr := (*a.Controller.Database).AddPlanning(&planning, specification.Id)
-	if databasePlanningErr != nil {
-		log.Printf("error during insertion into the database %s", databasePlanningErr.Error())
+	// Add topological sort to datastore
+	datastorePlanningErr := (*a.Controller.Datastore).AddPlanning(&planning, specification.Id)
+	if datastorePlanningErr != nil {
+		log.Printf("error during insertion into the datastore %s", datastorePlanningErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	// Add specification to database
-	databaseSpecErr := (*a.Controller.Database).AddSpecification(&specification)
-	if databaseSpecErr != nil {
-		log.Printf("error during insertion into the database %s", databaseSpecErr.Error())
+	// Add specification to datastore
+	datastoreSpecErr := (*a.Controller.Datastore).AddSpecification(&specification)
+	if datastoreSpecErr != nil {
+		log.Printf("error during insertion into the datastore %s", datastoreSpecErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 }
 
-// Execute Definition function
+// executeDefinition function extracts the Definition element from the request body and sends
+// it to the controller for execution. Finally, it records the status of the operation in the
+// variable type ResponseWriter. It takes as input the request and the variable type ResponseWriter.
 func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
-	/**
-	Function in charge of executing a definition.
-	*/
 
 	// Read definition from body and validate scheme
-	definition, err := readAndValidateElement(a.Controller.Validator.ValidateDefinitionStruct, w, r)
+	definition, err := readAndValidateElement(a.Controller.Validator.ValidateDefinitionStruct, r)
 	if err != nil {
 		log.Print(err.Error())
 		w.WriteHeader(http.StatusBadRequest)
@@ -177,10 +177,10 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 	// Generate random id
 	definition.Id = xid.New().String()
 
-	// Add definition to database
-	addDefErr := (*a.Controller.Database).AddDefinition(&definition)
+	// Add definition to datastore
+	addDefErr := (*a.Controller.Datastore).AddDefinition(&definition)
 	if addDefErr != nil {
-		log.Printf("error while trying to insert the definition in the database %s", addDefErr.Error())
+		log.Printf("error while trying to insert the definition in the datastore %s", addDefErr.Error())
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -197,23 +197,42 @@ func (a *Api) executeDefinition(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// Functions for GET {ID} types
+// getComponent function is responsible for resolving requests for information about a particular
+// Component element. To do so, it extracts the identifier from the body of the request and records
+// the result in the ResponseWriter type variable. It takes as input the request and the
+// ResponseWriter variable.
 func (a *Api) getComponent(w http.ResponseWriter, r *http.Request) {
-	getElement((*a.Controller.Database).GetComponent, w, r)
+	getElement((*a.Controller.Datastore).GetComponent, w, r)
 }
 
+// getSpecification function is responsible for resolving requests for information about a particular
+// Specification element. To do so, it extracts the identifier from the body of the request and records
+// the result in the ResponseWriter type variable. It takes as input the request and the
+// ResponseWriter variable.
 func (a *Api) getSpecification(w http.ResponseWriter, r *http.Request) {
-	getElement((*a.Controller.Database).GetSpecification, w, r)
+	getElement((*a.Controller.Datastore).GetSpecification, w, r)
 }
 
+// getTopologicalSort function is responsible for resolving requests for information about a particular
+// Planning element. To do so, it extracts the identifier from the body of the request and records
+// the result in the ResponseWriter type variable. It takes as input the request and the
+// ResponseWriter variable.
 func (a *Api) getTopologicalSort(w http.ResponseWriter, r *http.Request) {
-	getElement((*a.Controller.Database).GetPlanning, w, r)
+	getElement((*a.Controller.Datastore).GetPlanning, w, r)
 }
 
+// getDefinition function is responsible for resolving requests for information about a particular
+// Definition element. To do so, it extracts the identifier from the body of the request and records
+// the result in the ResponseWriter type variable. It takes as input the request and the
+// ResponseWriter variable.
 func (a *Api) getDefinition(w http.ResponseWriter, r *http.Request) {
-	getElement((*a.Controller.Database).GetDefinition, w, r)
+	getElement((*a.Controller.Datastore).GetDefinition, w, r)
 }
 
+// getResultDefinition function is responsible for resolving requests for information about a particular
+// ResultDefinition element. To do so, it extracts the identifier from the body of the request and records
+// the result in the ResponseWriter type variable. It takes as input the request and the
+// ResponseWriter variable.
 func (a *Api) getResultDefinition(w http.ResponseWriter, r *http.Request) {
-	getElement((*a.Controller.Database).GetResultDefinition, w, r)
+	getElement((*a.Controller.Datastore).GetResultDefinition, w, r)
 }
