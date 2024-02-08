@@ -1,0 +1,23 @@
+{
+    "id": "ConcatMessagesToyComponent",
+    "name": "Concat messages",
+    "apiVersion": "hector/v1",
+    "inputs": [
+        {
+            "name": "message-1",
+            "type": "string"
+        },
+        {
+            "name": "message-2",
+            "type": "string"
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output-file",
+            "type": "string"
+        }
+    ],
+    "containerDockerfile": "repo/data/hector/toy_components/concat_messages/Dockerfile",
+    "containerImage": "adriansegura99/dag_kubernetes_concat-messages:latest"
+}

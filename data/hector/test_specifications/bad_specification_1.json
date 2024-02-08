@@ -1,0 +1,36 @@
+{
+    "id": "Specification ID (ruta)",
+    "name": "Specification Name",
+    "apiVersion": "hector/v1",
+    "spec": {
+      "dag": {
+        "tasks": [
+          {
+            "name": "A",
+            "component": "Component 1 ID"
+          },
+          {
+            "name": "B",
+            "dependencies": [
+              "A"
+            ]
+          },
+          {
+            "name": "C",
+            "dependencies": [
+              "A"
+            ],
+            "component": "Component 3 ID"
+          },
+          {
+            "name": "D",
+            "dependencies": [
+              "B",
+              "C"
+            ],
+            "component": "Component 4 ID"
+          }
+        ]
+      }
+    }
+}

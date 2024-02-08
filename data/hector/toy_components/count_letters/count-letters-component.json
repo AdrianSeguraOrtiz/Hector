@@ -1,0 +1,19 @@
+{
+    "id": "CountLettersToyComponent",
+    "name": "Count letters",
+    "apiVersion": "hector/v1",
+    "inputs": [
+        {
+            "name": "input-file",
+            "type": "string"
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output-file",
+            "type": "string"
+        }
+    ],
+    "containerDockerfile": "repo/data/hector/toy_components/count_letters/Dockerfile",
+    "containerImage": "adriansegura99/dag_kubernetes_count-letters:latest"
+}

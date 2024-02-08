@@ -1,0 +1,23 @@
+{
+    "id": "ConcatFilesToyComponent",
+    "name": "Concat files",
+    "apiVersion": "hector/v1",
+    "inputs": [
+        {
+            "name": "input-file-1",
+            "type": "string"
+        },
+        {
+            "name": "input-file-2",
+            "type": "string"
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output-file",
+            "type": "string"
+        }
+    ],
+    "containerDockerfile": "repo/data/hector/toy_components/concat_files/Dockerfile",
+    "containerImage": "adriansegura99/dag_kubernetes_concat-files:latest"
+}

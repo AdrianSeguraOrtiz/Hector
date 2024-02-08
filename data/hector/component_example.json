@@ -1,0 +1,24 @@
+{
+    "id": "Component ID",
+    "name": "Component Name",
+    "apiVersion": "hector/v1",
+    "inputs": [
+        {
+            "name": "input_1",
+            "type": "string"
+        },
+        {
+            "name": "input_2",
+            "type": "int"
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output_1",
+            "type": "string"
+        }
+    ],
+    "containerDockerfile": "components/component_file.dockerfile",
+    "containerImage": "image/name",
+    "containerCommand": ["docker", "run", "..."]
+}
